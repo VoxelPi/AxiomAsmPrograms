@@ -1,0 +1,163 @@
+# 1: >
+# 2: <
+# 3: +
+# 4: -
+# 5: . Output
+# 6: , Input
+# 7: [
+# 8: ]
+
+# Load program
+{
+    $N_INSTRUCTIONS := R6
+
+    $N_INSTRUCTIONS = 0xFFFF # Number of instructions
+    {
+        R0 = read
+        inc $N_INSTRUCTIONS
+        [$N_INSTRUCTIONS] = R0
+        repeat if R0 != 0
+    }
+
+    # Output number of instructions
+    write $N_INSTRUCTIONS
+}
+
+$INSTRUCTION_PTR := R6
+$DATA_PTR := R5
+$INSTRUCTION_VAL := R4
+$DATA_VAL := R3
+
+# Initialize registers for main loop
+$INSTRUCTION_PTR = 0 # Initialize instruction pointer
+$DATA_PTR = 32 # Initialize data pointer
+
+# Main Loop
+@main_loop
+{
+    $INSTRUCTION_VAL = [$INSTRUCTION_PTR] # Instruction
+    $DATA_VAL = [$DATA_PTR] # Data
+
+    # Jump to the R4'th entry in the jump table.
+    R2 = @instruction_jump_table + $INSTRUCTION_VAL
+    jump R2
+    
+    @instruction_jump_table
+    jump 0
+    jump @op_inc_dp
+    jump @op_dec_dp
+    jump @op_inc_dv
+    jump @op_dec_dv
+    jump @op_output
+    jump @op_input
+    jump @op_loop_start
+    jump @op_loop_end
+
+    # Increment data pointer instruction, '>'
+    @op_inc_dp
+        inc $DATA_PTR
+        jump @post_instruction
+
+    # Decrement data pointer instruction, '<'
+    @op_dec_dp
+        dec $DATA_PTR
+        jump @post_instruction
+
+    # Increment data value instruction, '>'
+    @op_inc_dv
+        inc $DATA_VAL
+        [$DATA_PTR] = $DATA_VAL
+        jump @post_instruction
+
+    # Decrement data value instruction, '<'
+    @op_dec_dv
+        dec $DATA_VAL
+        [$DATA_PTR] = $DATA_VAL
+        jump @post_instruction
+
+    # Output data value instruction, '.'
+    @op_output
+        write $DATA_VAL
+        jump @post_instruction
+
+    # Input data value instruction, ','
+    @op_input
+        $DATA_VAL = read
+        [$DATA_PTR] = $DATA_VAL
+        jump @post_instruction
+
+    # Loop start instruction, '['
+    @op_loop_start
+        # Enter the loop if the current value is != 0.
+        jump @post_instruction if $DATA_VAL != 0
+
+        # Find the matching bracket.
+        R0 = 1 # Initialize scope counter
+        @loop_start_search_start
+        {
+            inc $INSTRUCTION_PTR
+            $INSTRUCTION_VAL = [$INSTRUCTION_PTR]
+
+            R2 = @loop_start_search_table + $INSTRUCTION_VAL
+            jump R2
+
+            @loop_start_search_table
+            jump 0
+            repeat
+            repeat
+            repeat
+            repeat
+            repeat
+            repeat
+            jump @loop_start_search_open
+            jump @loop_start_search_close
+
+            @loop_start_search_open
+                inc R0
+                repeat
+
+            @loop_start_search_close
+                dec R0
+                repeat if R0 != 0
+                jump @post_instruction 
+        }
+
+    # Loop end instruction, ']'
+    @op_loop_end
+        # Break the loop if the current value is 0.
+        jump @post_instruction if $DATA_VAL == 0
+
+        # Find the matching bracket.
+        R0 = 1 # Initialize loop counter
+        {
+            dec $INSTRUCTION_PTR
+            $INSTRUCTION_VAL = [$INSTRUCTION_PTR]
+
+            R2 = @loop_end_search_table + $INSTRUCTION_VAL
+            jump R2
+
+            @loop_end_search_table
+            jump 0
+            repeat
+            repeat
+            repeat
+            repeat
+            repeat
+            repeat
+            jump @loop_end_search_open
+            jump @loop_end_search_close
+
+            @loop_end_search_open
+                dec R0
+                repeat if R0 != 0
+                jump @post_instruction 
+
+            @loop_end_search_close
+                inc R0
+                repeat
+        }
+
+    @post_instruction
+    inc $INSTRUCTION_PTR
+    repeat
+}

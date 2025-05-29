@@ -1,0 +1,16 @@
+@global:start
+R1 = read
+R2 = read
+
+{
+    R3 = R1 + R2
+    write R3
+
+    R1 = R2 + R3
+    write R1
+
+    R2 = R3 + R1
+    write R2
+
+    repeat
+}

@@ -1,0 +1,151 @@
+!include stdlib/math
+
+# R3: Result
+# R4: Argument A
+# R5: Argument B
+# R6: Stack pointer
+
+@global:start
+$STACK_POINTER := R6
+$ARGUMENT_A := R4
+$ARGUMENT_B := R5
+$RESULT := R3
+
+# Reset the calculator.
+@reset
+$STACK_POINTER = 0 # Reset stack pointer to 0
+write 0
+
+# Read input
+@read_input
+R1 = read
+R2 = R1 bit get 7
+
+jump @store_number if R2 == 0
+
+# Pop the last two number of the stack, perform the calculation and push
+# The result on the stack.
+@perform_calculation
+    # Pop the top value and put in R5.
+    dec $STACK_POINTER
+    R5 = [$STACK_POINTER]
+
+    # Pop the top value and put in R4.
+    dec $STACK_POINTER
+    R4 = [$STACK_POINTER]
+
+    # Check stack-underflow. If this happens, reset.
+    jump @reset if $STACK_POINTER < 0
+
+    # Clear bit 7 of the input.
+    R1 = R1 bit clear 7
+    R1 = R1 + @operation_table
+    jump R1
+
+    # Goto operation
+    @operation_table
+    jump @reset
+    jump @op_add
+    jump @op_sub
+    jump @op_mul
+    jump @op_div
+    jump @op_and
+    jump @op_nand
+    jump @op_or
+    jump @op_nor
+    jump @op_xor
+    jump @op_xnor
+    jump @op_shift_left
+    jump @op_shift_right
+    jump @op_rotate_left
+    jump @op_rotate_right
+
+    # Addition, calculates a + b and pushes the result on the stack.
+    @op_add
+        R3 = R4 + R5
+        jump @store_result
+
+    # Subtraction, calculates a - b and pushes the result on the stack.
+    @op_sub
+        R3 = R4 - R5
+        jump @store_result
+
+    # Multiplication, calculates a * b and pushes the result on the stack.
+    @op_mul
+        R1 = R4
+        R2 = R5
+        call @stdlib:math/multiply # Sets R3
+        jump @store_result
+
+    # Division, calculates a / b and pushes the result on the stack.
+    @op_div
+        R3 = 0
+        R2 = R4
+        jump @store_result if R2 <= 0
+        {
+            R2 = R2 - R5
+            jump @store_result if R2 < 0
+            inc R3
+            repeat
+        }
+        jump @store_result
+
+    @op_and
+        R3 = R4 and R5
+        jump @store_result
+        
+    @op_nand
+        R3 = R4 nand R5
+        jump @store_result
+
+    @op_or
+        R3 = R4 or R5
+        jump @store_result
+        
+    @op_nor
+        R3 = R4 nor R5
+        jump @store_result
+
+    @op_xor
+        R3 = R4 xor R5
+        jump @store_result
+        
+    @op_xnor
+        R3 = R4 xnor R5
+        jump @store_result
+
+    @op_shift_left
+        R3 = shift left R5
+        jump @store_result_and_a
+
+    @op_shift_right
+        R3 = shift right R5
+        jump @store_result_and_a
+
+    @op_rotate_left
+        R3 = rotate left R5
+        jump @store_result_and_a
+
+    @op_rotate_right
+        R3 = rotate right R5
+        jump @store_result_and_a
+
+    @store_result_and_a
+    [$STACK_POINTER] = R4
+    inc $STACK_POINTER
+
+    @store_result
+    [$STACK_POINTER] = R3
+    inc $STACK_POINTER
+    write R3
+    jump @read_input
+
+# Push the number in R1 onto the stack
+@store_number
+    # Push number on stack
+    [$STACK_POINTER] = R1
+    inc $STACK_POINTER
+
+    # Output last input number.
+    write R1
+    jump @read_input
