@@ -1,0 +1,28 @@
+0, 0, 0, 8
+Const read
+Const poll
+
+getFibo (fibo, prev, iter)
+	temp = fibo
+	fibo = +(fibo, prev)
+	prev = temp
+	iter = dec(iter)
+	repeat (fibo, prev, iter) if iter > 0
+return (fibo)
+
+loop (base0, base1)
+	iter = read
+	prev = base0
+	fibo = base1
+	fibo = base0 if iter == 0
+	iter = dec(iter)
+	fibo = getFibo(fibo, prev, iter) if iter > 0
+	write(fibo)
+	repeat (base0, base1)
+return ()
+
+main ()
+	base0 = read
+	base1 = read
+	loop(base0, base1)
+end

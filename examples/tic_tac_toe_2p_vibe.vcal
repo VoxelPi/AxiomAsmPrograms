@@ -1,0 +1,134 @@
+1, 0, 0, 8
+Const read
+Const poll
+
+istaken (b00, b01, b02, b10, b11, b12, b20, b21, b22, x)
+	status = 0
+	status = b00 if x == 0
+	x = dec(x)
+	status = b01 if x == 0
+	x = dec(x)
+	status = b02 if x == 0
+	x = dec(x)
+	status = b10 if x == 0
+	x = dec(x)
+	status = b11 if x == 0
+	x = dec(x)
+	status = b12 if x == 0
+	x = dec(x)
+	status = b20 if x == 0
+	x = dec(x)
+	status = b21 if x == 0
+	x = dec(x)
+	status = b22 if x == 0
+return (b00, b01, b02, b10, b11, b12, b20, b21, b22, status)
+	
+place (b00, b01, b02, b10, b11, b12, b20, b21, b22, x, mark)
+	b00 = mark if x == 0
+	x = dec(x)
+	b01 = mark if x == 0
+	x = dec(x)
+	b02 = mark if x == 0
+	x = dec(x)
+	b10 = mark if x == 0
+	x = dec(x)
+	b11 = mark if x == 0
+	x = dec(x)
+	b12 = mark if x == 0
+	x = dec(x)
+	b20 = mark if x == 0
+	x = dec(x)
+	b21 = mark if x == 0
+	x = dec(x)
+	b22 = mark if x == 0
+return (b00, b01, b02, b10, b11, b12, b20, b21, b22)
+
+checkwin (b00, b01, b02, b10, b11, b12, b20, b21, b22, win)
+	draw = +(b00, b01)
+	draw = +(draw, b02)
+	draw = +(draw, b10)
+	draw = +(draw, b11)
+	draw = +(draw, b12)
+	draw = +(draw, b20)
+	draw = +(draw, b21)
+	draw = +(draw, b22)
+	draw = -(draw, 21)
+	win = 3 if draw == 0
+	r0 = +(b00, b01)
+	r0 = +(r0, b02)
+	r1 = +(b10, b11)
+	r1 = +(r1, b12)
+	r2 = +(b20, b21)
+	r2 = +(r2, b22)
+	c0 = +(b00, b10)
+	c0 = +(c0, b20)
+	c1 = +(b01, b11)
+	c1 = +(c1, b21)
+	c2 = +(b02, b12)
+	c2 = +(c2, b22)
+	d0 = +(b00, b11)
+	d0 = +(d0, b22)
+	d1 = +(b02, b11)
+	d1 = +(d1, b20)
+	r0 = -(r0, 3)
+	r1 = -(r1, 3)
+	r2 = -(r2, 3)
+	c0 = -(c0, 3)
+	c1 = -(c1, 3)
+	c2 = -(c2, 3)
+	d0 = -(d0, 3)
+	d1 = -(d1, 3)
+	win = 1 if r0 == 0
+	win = 1 if r1 == 0
+	win = 1 if r2 == 0
+	win = 1 if c0 == 0
+	win = 1 if c1 == 0
+	win = 1 if c2 == 0
+	win = 1 if d0 == 0
+	win = 1 if d1 == 0
+	r0 = -(r0, 9)
+	r1 = -(r1, 9)
+	r2 = -(r2, 9)
+	c0 = -(c0, 9)
+	c1 = -(c1, 9)
+	c2 = -(c2, 9)
+	d0 = -(d0, 9)
+	d1 = -(d1, 9)
+	win = 2 if r0 == 0
+	win = 2 if r1 == 0
+	win = 2 if r2 == 0
+	win = 2 if c0 == 0
+	win = 2 if c1 == 0
+	win = 2 if c2 == 0
+	win = 2 if d0 == 0
+	win = 2 if d1 == 0
+return (b00, b01, b02, b10, b11, b12, b20, b21, b22, win)
+
+loop (player, b00, b01, b02, b10, b11, b12, b20, b21, b22, win)
+	write(player)
+	toplace = read
+	tocheck = toplace
+	b00, b01, b02, b10, b11, b12, b20, b21, b22, taken = istaken(b00, b01, b02, b10, b11, b12, b20, b21, b22, tocheck)
+	mark = 1
+	mark = 4 if player > 0
+	b00, b01, b02, b10, b11, b12, b20, b21, b22 = place(b00, b01, b02, b10, b11, b12, b20, b21, b22, toplace, mark) if taken == 0
+	b00, b01, b02, b10, b11, b12, b20, b21, b22, win = checkwin(b00, b01, b02, b10, b11, b12, b20, b21, b22, win) if taken == 0
+	player = bit toggle(player, 0) if taken == 0
+	repeat (player, b00, b01, b02, b10, b11, b12, b20, b21, b22, win) if win == 0
+return (win)
+
+main ()
+	b00 = 0
+	b01 = 0
+	b02 = 0
+	b10 = 0
+	b11 = 0
+	b12 = 0
+	b20 = 0
+	b21 = 0
+	b22 = 0
+	player = 0
+	win = 0
+	win = loop(player, b00, b01, b02, b10, b11, b12, b20, b21, b22, win) if win == 0
+	write(win)
+end
