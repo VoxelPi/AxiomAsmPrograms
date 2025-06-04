@@ -16,5 +16,6 @@ $output := R3
 
     # Output the product.
     write R3
+    break
     repeat
 }
