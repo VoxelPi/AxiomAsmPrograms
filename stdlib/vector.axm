@@ -1,0 +1,232 @@
+# Cleares all entries of the vector.
+# R1 .. length of the vector.
+# R2 .. pointer to the first element
+# Used registers: R2, R4
+@stdlib:vector/clear {
+    $length := R1
+    $ptr := R2
+    $i := R4
+
+    $i = $length
+    {
+        [$ptr] = 0
+        $ptr += 1
+        $i -= 1
+        repeat if $i != 0
+    }
+
+    return
+}
+
+# Sets all entries of the vector to the given value.
+# R1 .. length of the vector.
+# R2 .. pointer to the first element.
+# R3 .. value to set.
+# Used registers: R2, R4.
+@stdlib:vector/set {
+    $length := R1
+    $ptr := R2
+    $value := R3
+    $i := R4
+    
+    $i = $length
+    {
+        [$ptr] = $value
+        $ptr += 1
+        $i -= 1
+        repeat if $i != 0
+    }
+
+    return
+}
+
+# Sets all entries of the vector to given inputs.
+# R1 .. length of the vector.
+# R2 .. pointer to the first element
+# Used registers: R1, R2, R4
+@stdlib:vector/read {
+    $length := R1
+    $ptr := R2
+    $i := R4
+    
+    write $length
+    $i = $length
+    {
+        R1 = read
+        [$ptr] = R1
+
+        $ptr += 1
+        $i -= 1
+        repeat if $i != 0
+    }
+
+    return
+}
+
+# Writes all entries of the vector.
+# R1 .. length of the vector.
+# R2 .. pointer to the first element
+# Used registers: R1, R2, R4
+@stdlib:vector/write {
+    $length := R1
+    $ptr := R2
+    $i := R4
+    
+    write $length
+    $i = $length
+    {
+        R1 = [$ptr]
+        write R1
+        
+        $ptr += 1
+        $i -= 1
+        repeat if $i != 0
+    }
+
+    return
+}
+
+# Fills the vector with the range 0 until n
+# R1 .. length of the vector.
+# R2 .. pointer to the first element.
+# Used registers: R2, R4.
+@stdlib:vector/range {
+    $length := R1
+    $ptr := R2
+    $i := R4
+
+    $i = $length
+    $ptr += $length
+    {
+        dec $ptr
+        dec $i
+        [$ptr] = $i
+        repeat if $i != 0
+    }
+
+    return
+}
+
+# Calculates the dot product of two vectors, c_i = a_i + b_i.
+# R1 .. length of the vectors.
+# R2 .. pointer to the first element of the input vector a.
+# R3 .. pointer to the first element of the input vector b.
+# R4 .. pointer to the first element of the result vector c.
+# Used registers: R1, R2, R3, R4.
+@stdlib:vector/add {
+    $i := R1
+    $a := R2
+    $b := R3
+    $c := R4
+
+    {
+        # Calculate sum of the two entries.
+        R5 = [$a]
+        R6 = [$b]
+        R5 = R5 + R6
+        [$c] = R5
+
+        inc $a
+        inc $b
+        inc $c
+
+        dec $i
+        repeat if $i != 0
+    }
+
+    return
+}
+
+# Calculates the dot product of two vectors, c_i = a_i - b_i.
+# R1 .. length of the vectors.
+# R2 .. pointer to the first element of the input vector a.
+# R3 .. pointer to the first element of the input vector b.
+# R4 .. pointer to the first element of the result vector c.
+# Used registers: R1, R2, R3, R4.
+@stdlib:vector/subtract {
+    $i := R1
+    $a := R2
+    $b := R3
+    $c := R4
+
+    {
+        # Calculate sum of the two entries.
+        R5 = [$a]
+        R6 = [$b]
+        R5 = R5 - R6
+        [$c] = R5
+
+        inc $a
+        inc $b
+        inc $c
+
+        dec $i
+        repeat if $i != 0
+    }
+
+    return
+}
+
+# Calculates the dot product of two vectors, c = a_i * b_i.
+# R1 .. length of the vectors.
+# R2 .. pointer to the first element of the input vector a.
+# R3 .. pointer to the first element of the input vector b.
+# R4 .. result of the dot product.
+# Used registers: R1, R2, R3, R4, R5, R6, R7, R8.
+@stdlib:vector/dot {
+    $length := R1
+    $a := R2
+    $b := R3
+    $sum := R4
+    $i := R5
+
+    $i = $length
+    {
+        R6 = [$a]
+        R7 = [$b]
+
+        {
+            # MULTIPLY
+            $A := R6
+            $B := R7
+            $OUT := R8
+
+            $OUT = $A - $B
+            if $OUT < 0
+            {
+                $OUT = $A
+                $A = $B
+                $B = $OUT
+            }
+
+            # Initialize output
+            $OUT = 0 # SUM
+
+            # Pre cycle.
+            exit if $B == 0
+                
+            {
+                # Add shifted B to sum
+                R1 = $B and 1
+                if R1 != 0
+                    $OUT = $OUT + $A
+
+                # Post cycle.
+                $A = shift left $A
+                $B = shift right $B
+                repeat if $B != 0
+            }
+        }
+
+        # Add multiplication result to the output sum
+        $sum += R8
+
+        inc $a
+        inc $b
+
+        dec $i
+        repeat if $i != 0
+    }
+
+    return
+}

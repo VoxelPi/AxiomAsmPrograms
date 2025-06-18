@@ -4,7 +4,7 @@
 # Input A in R1 (destroyed)
 # Input B in R2 (destroyed)
 # Output in R3
-# Uses C1
+# Uses R4
 @stdlib:math/multiply
 {
     $A := R1
