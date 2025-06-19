@@ -1,0 +1,48 @@
+!include stdlib/vector
+
+@global:start
+{
+    $length := 3
+    $vector_a := 0
+    $vector_b := 3
+    $vector_c := 6
+    
+    # Input vector a.
+    {
+        R1 = $length
+        R2 = $vector_a
+        call @stdlib:vector/read
+    }
+    
+    # Input vector b.
+    {
+        R1 = $length
+        R2 = $vector_b
+        call @stdlib:vector/read
+    }
+
+    # Calculate and output a - b
+    {
+        R1 = $length
+        R2 = $vector_a
+        R3 = $vector_b
+        R4 = $vector_c
+        call @stdlib:vector/subtract
+
+        R1 = $length
+        R2 = $vector_c
+        call @stdlib:vector/write
+    }
+
+    # Calculate and output dot product.
+    {
+        R1 = $length
+        R2 = $vector_a
+        R3 = $vector_b
+        call @stdlib:vector/dot
+        write R4
+    }
+
+    break
+    repeat
+}
