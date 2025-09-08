@@ -1,0 +1,15 @@
+@stdlib:string/write {
+    # Handle value.
+    R2 = [R1]
+    return if R2 == 0
+    write R2
+
+    # Increment data pointer.
+    R1 += 1
+
+    # Handle page switch.
+    R3 = I1_1 + 0 with carry
+    I1 = R3, 0
+
+    repeat
+}
