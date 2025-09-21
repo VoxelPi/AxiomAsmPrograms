@@ -1,0 +1,23 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "axiom assemble",
+            "type": "shell",
+            "command": "axiom asm ${file} .\\output\\program.bin -r",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "axiom flash",
+            "type": "shell",
+            "command": "axiom bridge upload .\\output\\program.bin -p COM7",
+            "problemMatcher": [],
+        }
+    ]
+}
