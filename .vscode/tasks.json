@@ -6,7 +6,7 @@
         {
             "label": "axiom assemble",
             "type": "shell",
-            "command": "axiom asm ${file} .\\output\\program.bin -r",
+            "command": "axiom asm \"${file}\" \"${workspaceFolder}\\output\\${fileBasenameNoExtension}.bin\" -r -a ax08",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
@@ -16,7 +16,7 @@
         {
             "label": "axiom flash",
             "type": "shell",
-            "command": "axiom bridge upload .\\output\\program.bin -p COM7",
+            "command": "axiom bridge upload \"${workspaceFolder}\\output\\${fileBasenameNoExtension}.bin\" -p COM7",
             "problemMatcher": [],
         }
     ]
