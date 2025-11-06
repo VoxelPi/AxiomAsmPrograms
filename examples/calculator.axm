@@ -1,0 +1,1141 @@
+# MEMORY MAP:
+# 0x0001: Stack pointer
+# 0x0100-0x01FF: Data page 1
+# 0x0200-0x02FF: Data page 2
+
+@reset
+R1 = 0
+R2 = 0
+R3 = 0
+R4 = 0
+R5 = 0
+R6 = 0
+R7 = 0
+I1 = 0, 0
+
+R2 = 0x80
+R1 = 0x00
+{
+    I1 = R2, 0x00
+    R3 = [R1]
+    exit if R3 == 0
+    write R3
+
+    R1 = R1 + 1
+    R2 = R2 + 0 with carry
+    repeat
+}
+
+# Clear memory
+{
+    # Clear STATUS Page
+    I1 = 0x00, 0x00
+    R1 = 0
+    {
+        [R1] = 0
+        R1 += 1
+        repeat if R1 != 0
+    }
+
+    # Clear Data 0 Page
+    I1 = 0x01, 0x00
+    R1 = 0
+    {
+        [R1] = 0
+        R1 += 1
+        repeat if R1 != 0
+    }
+
+    # Clear Data 1 Page
+    I1 = 0x02, 0x00
+    R1 = 0
+    {
+        [R1] = 0
+        R1 += 1
+        repeat if R1 != 0
+    }
+
+    # Set stack pointer to 0.
+    I1 = 0x0001
+    [0x0001] = 0;
+}
+
+@calculator_main
+{
+    # Read command
+    @read_command {
+        write '\n'
+
+        # Print stack pointer.
+        write 0x5B # [
+        I1 = 0x0000
+        R1 = [0x01]
+        R2 = shift right R1
+        R2 = shift right R2
+        R2 = shift right R2
+        R2 = shift right R2
+        R3 = R2 - 9
+        R2 += '0'
+        R2 += 7 if R3 > 0
+        write R2
+
+        R2 = R1 and 0x0F
+        R3 = R2 - 9
+        R2 += '0'
+        R2 += 7 if R3 > 0
+        write R2
+        write 0x5D # ]
+        write 0x20
+
+        write 'C'
+        write 'o'
+        write 'm'
+        write 'm'
+        write 'a'
+        write 'n'
+        write 'd'
+        write ':'
+        write 0x20
+
+        # Read command.
+        {
+            {
+                R1 = poll
+                repeat if R1 == 0
+            }
+            R1 = read
+
+            R2 = R1 - 0x0D
+            repeat if R2 == 0
+        }
+
+        write '''
+        write R1
+        write '''
+
+        jump R1, 0x7F # Jump to function table. (TODO: WHY THE HELL ARE THE JUMP ARGS FLIPPED?!?)
+    }
+
+    repeat
+}
+
+@invalid_command {
+    write '\n'
+    write 'I'
+    write 'n'
+    write 'v'
+    write 'a'
+    write 'l'
+    write 'i'
+    write 'd'
+    write 0x20
+    write 'c'
+    write 'o'
+    write 'm'
+    write 'm'
+    write 'a'
+    write 'n'
+    write 'd'
+    write 0x21
+    write '\n'
+    jump @calculator_main
+}
+
+@missing_arguments {
+    # Expects R1 to be the number of arguments needed
+    # Expects R2 to be the number of arguments provided.
+    write '\n'
+    write 'M'
+    write 'i'
+    write 's'
+    write 's'
+    write 'i'
+    write 'n'
+    write 'g'
+    write 0x20
+    write 'a'
+    write 'r'
+    write 'g'
+    write 'u'
+    write 'm'
+    write 'e'
+    write 'n'
+    write 't'
+    write 's'
+    write 0x21
+    write 0x20
+    R2 += '0'
+    write R2
+    write '/'
+    R1 += '0'
+    write R1
+    write '\n'
+    jump @calculator_main
+}
+
+@store_result {
+    # R2, R1 store the result.
+    I1 = 0x0000
+    R3 = [0x01] # Stack pointer
+    R4 = R3 + 1
+    [0x01] = R4 # Stack pointer + 1
+    I1 = 0x0100
+    [R3] = R1
+    I1 = 0x0200
+    [R3] = R2
+
+    write '\n'
+    write 'R'
+    write 'e'
+    write 's'
+    write 'u'
+    write 'l'
+    write 't'
+    write ':'
+    write 0x20
+
+    # write hex
+    {
+        write '0'
+        write 'x'
+        write 0x20
+
+        R3 = shift right R2
+        R3 = shift right R3
+        R3 = shift right R3
+        R3 = shift right R3
+        R4 = R3 - 9
+        R3 += '0'
+        R3 += 7 if R4 > 0
+        write R3
+
+        R3 = R2 and 0x0F
+        R4 = R3 - 9
+        R3 += '0'
+        R3 += 7 if R4 > 0
+        write R3
+
+        R3 = shift right R1
+        R3 = shift right R3
+        R3 = shift right R3
+        R3 = shift right R3
+        R4 = R3 - 9
+        R3 += '0'
+        R3 += 7 if R4 > 0
+        write R3
+
+        R3 = R1 and 0x0F
+        R4 = R3 - 9
+        R3 += '0'
+        R3 += 7 if R4 > 0
+        write R3
+    }
+
+    # write decimal (destroys R1, R2)
+    {
+        write 0x20
+        write 0x20
+        write '|'
+        write 0x20
+        write 0x20
+        write '0'
+        write 'd'
+        write 0x20
+
+        R8 = 0 # digits _, 4
+        R7 = 0 # digits 3, 2
+        R6 = 0 # digits 1, 0
+        # R2 # number [8..15]
+        # R1 # number [0...7]
+
+        # R4 is random stuff
+        R3 = 16 # counter
+        {
+            # digit 0
+            R4 = R6 and 0x0F
+            R4 -= 0x05
+            R6 += 0x03 if R4 >= 0
+
+            # digit 1
+            R4 = R6 and 0xF0
+            R4 -= 0x50
+            R6 += 0x30 if R4 >= 0
+
+            # digit 2
+            R4 = R7 and 0x0F
+            R4 -= 0x05
+            R7 += 0x03 if R4 >= 0
+
+            # digit 3
+            R4 = R7 and 0xF0
+            R4 -= 0x50
+            R7 += 0x30 if R4 >= 0
+
+            # digit 4
+            R4 = R8 and 0x0F
+            R4 -= 0x05
+            R8 += 0x03 if R4 >= 0
+
+            # Shift everthing one to the left.
+            R1 =  shift left R1
+            R2 = rotate left R2
+            R6 = rotate left R6
+            R7 = rotate left R7
+            R8 = rotate left R8
+
+            R3 -= 1
+            repeat if R3 > 0
+        }
+
+        R1 = 0
+
+        R5 = R8 and 0x0F
+        R1 = 1 if R5 != 0
+        R5 += '0' if R1 != 0
+        R5 = '.' if R1 == 0
+        write R5
+
+        R5 = shift right R7
+        R5 = shift right R5
+        R5 = shift right R5
+        R5 = shift right R5
+        R1 = 1 if R5 != 0
+        R5 += '0' if R1 != 0
+        R5 = '.' if R1 == 0
+        write R5
+
+        R5 = R7 and 0x0F
+        R1 = 1 if R5 != 0
+        R5 += '0' if R1 != 0
+        R5 = '.' if R1 == 0
+        write R5
+
+        R5 = shift right R6
+        R5 = shift right R5
+        R5 = shift right R5
+        R5 = shift right R5
+        R1 = 1 if R5 != 0
+        R5 += '0' if R1 != 0
+        R5 = '.' if R1 == 0
+        write R5
+
+        R5 = R6 and 0x0F
+        R5 += '0'
+        write R5
+    }
+
+    write '\n'
+    jump @calculator_main
+}
+
+
+
+@command_read_decimal_integer_direct {
+    # Same as normal routine, but first digit is already present in R1
+
+    # Read a decimal integer
+    @read_input {
+        R8 = '0' # digit 3
+        R7 = '0' # digit 2
+        R6 = '0' # digit 1
+        R5 = R1  # digit 0
+
+        # Print start.
+        write '\n'
+        write 'I'
+        write 'n'
+        write 'p'
+        write 'u'
+        write 't'
+        write ':'
+        write 0x20
+        write '0'
+        write 'd'
+        write 0x20
+        write R1
+
+        R4 = 3 # Counter (initialized to 3, as first digit is already present and must therefore be skipped.)
+        {
+            {
+                R2 = poll
+                repeat if R2 == 0
+            }
+            R2 = read
+
+            R1 = R2 - 0x0D
+            exit @read_input if R1 == 0
+            R1 = R2 - 0x20
+            exit @read_input if R1 == 0
+            R1 = R2 - '0'
+            repeat if R1 < 0
+            R1 = R2 - '9'
+            repeat if R1 > 0
+
+            R8 = R7
+            R7 = R6
+            R6 = R5
+            R5 = R2
+            write R2
+
+            R4 -= 1
+            repeat if R4 > 0
+        }
+    }
+
+    # Convert to binary
+    {
+        # Convert ascii decimal digits to decimal digits
+        R5 -= '0'
+        R6 -= '0'
+        R7 -= '0'
+        R8 -= '0'
+
+        # Convert decimal digits to bcd
+        R8 = shift left R8
+        R8 = shift left R8
+        R8 = shift left R8
+        R8 = shift left R8
+        R8 = R8 or R7
+        R6 = shift left R6
+        R6 = shift left R6
+        R6 = shift left R6
+        R6 = shift left R6
+        R7 = R6 or R5
+
+        # Convert bcd to binary
+        # - R8 R7 contain the bcd digits.
+        # - R6 R5 the binary number.
+        # - R4 R3 R2 R1 are variables.
+        R1 = 16
+        {
+            # Shift the number one to the left.
+            R8 = shift right R8
+            R7 = rotate right R7
+            R6 = rotate right R6
+            R5 = rotate right R5
+
+            # Update digit 0
+            R2 = R7 and 0x0F
+            R2 = R2 - 0x08
+            R7 -= 0x03 if R2 >= 0
+
+            # Update digit 1
+            R2 = R7 and 0xF0
+            R2 = R2 - 0x80
+            R7 -= 0x30 if R2 >= 0
+
+            # Update digit 2
+            R2 = R8 and 0x0F
+            R2 = R2 - 0x08
+            R8 -= 0x03 if R2 >= 0
+
+            # Update digit 3
+            # Digit 3 is (after the first right shift) always at most 4. -> skip
+
+            R1 -= 1
+            repeat if R1 > 0
+        }
+
+        R1 = R5
+        R2 = R6
+        jump @store_result
+    }
+}
+
+@command_read_decimal_integer {
+    # Read a decimal integer
+    @read_input {
+        R8 = '0' # digit 3
+        R7 = '0' # digit 2
+        R6 = '0' # digit 1
+        R5 = '0' # digit 0
+
+        # Print start.
+        write '\n'
+        write 'I'
+        write 'n'
+        write 'p'
+        write 'u'
+        write 't'
+        write ':'
+        write 0x20
+        write '0'
+        write 'd'
+        write 0x20
+
+        R4 = 4 # Counter
+        {
+            {
+                R2 = poll
+                repeat if R2 == 0
+            }
+            R2 = read
+
+            R1 = R2 - 0x0D
+            exit @read_input if R1 == 0
+            R1 = R2 - 0x20
+            exit @read_input if R1 == 0
+            R1 = R2 - '0'
+            repeat if R1 < 0
+            R1 = R2 - '9'
+            repeat if R1 > 0
+
+            R8 = R7
+            R7 = R6
+            R6 = R5
+            R5 = R2
+            write R2
+
+            R4 -= 1
+            repeat if R4 > 0
+        }
+    }
+
+    # Convert to binary
+    {
+        # Convert ascii decimal digits to decimal digits
+        R5 -= '0'
+        R6 -= '0'
+        R7 -= '0'
+        R8 -= '0'
+
+        # Convert decimal digits to bcd
+        R8 = shift left R8
+        R8 = shift left R8
+        R8 = shift left R8
+        R8 = shift left R8
+        R8 = R8 or R7
+        R6 = shift left R6
+        R6 = shift left R6
+        R6 = shift left R6
+        R6 = shift left R6
+        R7 = R6 or R5
+
+        # Convert bcd to binary
+        # - R8 R7 contain the bcd digits.
+        # - R6 R5 the binary number.
+        # - R4 R3 R2 R1 are variables.
+        R1 = 16
+        {
+            # Shift the number one to the left.
+            R8 = shift right R8
+            R7 = rotate right R7
+            R6 = rotate right R6
+            R5 = rotate right R5
+
+            # Update digit 0
+            R2 = R7 and 0x0F
+            R2 = R2 - 0x08
+            R7 -= 0x03 if R2 >= 0
+
+            # Update digit 1
+            R2 = R7 and 0xF0
+            R2 = R2 - 0x80
+            R7 -= 0x30 if R2 >= 0
+
+            # Update digit 2
+            R2 = R8 and 0x0F
+            R2 = R2 - 0x08
+            R8 -= 0x03 if R2 >= 0
+
+            # Update digit 3
+            # Digit 3 is (after the first right shift) always at most 4. -> skip
+
+            R1 -= 1
+            repeat if R1 > 0
+        }
+
+        R1 = R5
+        R2 = R6
+        jump @store_result
+    }
+}
+
+@command_read_hex_integer {
+    # Read a hex integer
+    @read_input {
+        R8 = 0 # digit 3
+        R7 = 0 # digit 2
+        R6 = 0 # digit 1
+        R5 = 0 # digit 0
+
+        # Print start.
+        write '\n'
+        write 'I'
+        write 'n'
+        write 'p'
+        write 'u'
+        write 't'
+        write ':'
+        write 0x20
+        write '0'
+        write 'x'
+        write 0x20
+
+        R4 = 4 # Counter
+        {
+            {
+                R2 = poll
+                repeat if R2 == 0
+            }
+            R2 = read
+
+            R1 = R2 - 0x0D
+            exit @read_input if R1 == 0
+            R1 = R2 - 0x20
+            exit @read_input if R1 == 0
+
+            # Check if digit is between 0..9
+            R1 = R2 - '0'
+            if R1 >= 0
+            {
+                R1 = R2 - '9'
+                if R1 <= 0
+                {
+                    R2 -= '0'
+                    jump @valid_hex_int
+                }
+            }
+
+            # Check if digit is between a..f
+            R1 = R2 - 'a'
+            if R1 >= 0
+            {
+                R1 = R2 - 'f'
+                if R1 <= 0
+                {
+                    R2 -= 87
+                    jump @valid_hex_int
+                }
+            }
+
+            # Check if digit is between A..F
+            R1 = R2 - 'A'
+            if R1 >= 0
+            {
+                R1 = R2 - 'F'
+                if R1 <= 0
+                {
+                    R2 -= 55
+                    jump @valid_hex_int
+                }
+            }
+
+            # Invalid hex digit
+            repeat
+
+            # Valid hex digit
+            @valid_hex_int
+
+            R8 = R7
+            R7 = R6
+            R6 = R5
+            R5 = R2
+
+            R3 = R2 + '0'
+            R1 = R2 - 9
+            R3 += 7 if R1 > 0
+            write R3
+
+            R4 -= 1
+            repeat if R4 > 0
+        }
+    }
+
+    # Convert digits to binary.
+    {
+        # At this point
+        # R8: digit 3 (0-F)
+        # R7: digit 2 (0-F)
+        # R6: digit 1 (0-F)
+        # R5: digit 0 (0-F)
+
+        R8 = shift left R8
+        R8 = shift left R8
+        R8 = shift left R8
+        R8 = shift left R8
+        R6 = shift left R6
+        R6 = shift left R6
+        R6 = shift left R6
+        R6 = shift left R6
+        R1 = R6 or R5
+        R2 = R8 or R7
+
+        jump @store_result
+    }
+}
+
+
+
+@command_operation_addition {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    # Perform 16bit addition.
+    R1 = R5 + R7
+    R2 = R6 + R8 with carry
+
+    jump @store_result
+}
+
+@command_operation_subtraction {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    # Perform 16bit subtraction.
+    R1 = R7 - R5
+    R2 = R8 - R6 with carry
+
+    jump @store_result
+}
+
+@command_operation_and {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    # Perform 16bit and.
+    R1 = R7 and R5
+    R2 = R8 and R6
+
+    jump @store_result
+}
+
+@command_operation_or {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    # Perform 16bit or.
+    R1 = R7 or R5
+    R2 = R8 or R6
+
+    jump @store_result
+}
+
+@command_operation_xor {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    # Perform 16bit xor.
+    R1 = R7 xor R5
+    R2 = R8 xor R6
+
+    jump @store_result
+}
+
+@command_operation_invert {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 1
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    # Perform 16bit xor.
+    R1 = R7 xor 0xFF
+    R2 = R8 xor 0xFF
+
+    jump @store_result
+}
+
+# Command jump table.
+!at 0x7F00 {
+    jump @invalid_command                                       # 0x00
+    jump @invalid_command                                       # 0x01
+    jump @invalid_command                                       # 0x02
+    jump @invalid_command                                       # 0x03
+    jump @invalid_command                                       # 0x04
+    jump @invalid_command                                       # 0x05
+    jump @invalid_command                                       # 0x06
+    jump @invalid_command                                       # 0x07
+    jump @invalid_command                                       # 0x08
+    jump @invalid_command                                       # 0x09
+    jump @invalid_command                                       # 0x0A
+    jump @invalid_command                                       # 0x0B
+    jump @invalid_command                                       # 0x0C
+    jump @invalid_command                                       # 0x0D
+    jump @invalid_command                                       # 0x0E
+    jump @invalid_command                                       # 0x0F
+    jump @invalid_command                                       # 0x10
+    jump @invalid_command                                       # 0x11
+    jump @invalid_command                                       # 0x12
+    jump @invalid_command                                       # 0x13
+    jump @invalid_command                                       # 0x14
+    jump @invalid_command                                       # 0x15
+    jump @invalid_command                                       # 0x16
+    jump @invalid_command                                       # 0x17
+    jump @invalid_command                                       # 0x18
+    jump @invalid_command                                       # 0x19
+    jump @invalid_command                                       # 0x1A
+    jump @invalid_command                                       # 0x1B
+    jump @invalid_command                                       # 0x1C
+    jump @invalid_command                                       # 0x1D
+    jump @invalid_command                                       # 0x1E
+    jump @invalid_command                                       # 0x1F
+    jump @invalid_command                                       # 0x20
+    jump @invalid_command                                       # 0x21
+    jump @invalid_command                                       # 0x22
+    jump @invalid_command                                       # 0x23
+    jump @invalid_command                                       # 0x24
+    jump @invalid_command                                       # 0x25 - '%'
+    jump @command_operation_and                                 # 0x26 - '&', bitwise and.
+    jump @invalid_command                                       # 0x27
+    jump @invalid_command                                       # 0x28
+    jump @invalid_command                                       # 0x29
+    jump @invalid_command                                       # 0x2A - '*'
+    jump @command_operation_addition                            # 0x2B - '+', 16bit arithmetic addition.
+    jump @invalid_command                                       # 0x2C
+    jump @command_operation_subtraction                         # 0x2D - '-', 16bit arithmetic subtraction.
+    jump @invalid_command                                       # 0x2E
+    jump @invalid_command                                       # 0x2F - '/'
+    jump @command_read_decimal_integer_direct                   # 0x30 - '0', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x31 - '1', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x32 - '2', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x33 - '3', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x34 - '4', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x35 - '5', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x36 - '6', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x37 - '7', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x38 - '8', Direct decimal input.
+    jump @command_read_decimal_integer_direct                   # 0x39 - '9', Direct decimal input.
+    jump @invalid_command                                       # 0x3A
+    jump @invalid_command                                       # 0x3B
+    jump @invalid_command                                       # 0x3C
+    jump @invalid_command                                       # 0x3D
+    jump @invalid_command                                       # 0x3E
+    jump @invalid_command                                       # 0x3F
+    jump @invalid_command                                       # 0x40
+    jump @invalid_command                                       # 0x41 - 'A'
+    jump @invalid_command                                       # 0x42 - 'B'
+    jump @invalid_command                                       # 0x43 - 'C'
+    jump @command_read_decimal_integer                          # 0x44 - 'D', read decimal integer.
+    jump @invalid_command                                       # 0x45 - 'E'
+    jump @invalid_command                                       # 0x46 - 'F'
+    jump @invalid_command                                       # 0x47 - 'G'
+    jump @invalid_command                                       # 0x48 - 'H'
+    jump @invalid_command                                       # 0x49 - 'I'
+    jump @invalid_command                                       # 0x4A - 'J'
+    jump @invalid_command                                       # 0x4B - 'K'
+    jump @invalid_command                                       # 0x4C - 'L'
+    jump @invalid_command                                       # 0x4D - 'M'
+    jump @invalid_command                                       # 0x4E - 'N'
+    jump @invalid_command                                       # 0x4F - 'O'
+    jump @invalid_command                                       # 0x50 - 'P'
+    jump @invalid_command                                       # 0x51 - 'Q'
+    jump @reset                                                 # 0x52 - 'R', reset calculator.
+    jump @invalid_command                                       # 0x53 - 'S'
+    jump @invalid_command                                       # 0x54 - 'T'
+    jump @invalid_command                                       # 0x55 - 'U'
+    jump @invalid_command                                       # 0x56 - 'V'
+    jump @invalid_command                                       # 0x57 - 'W'
+    jump @command_read_hex_integer                              # 0x58 - 'X', read hexadecimal integer.
+    jump @invalid_command                                       # 0x59 - 'Y'
+    jump @invalid_command                                       # 0x5A - 'Z'
+    jump @invalid_command                                       # 0x5B
+    jump @invalid_command                                       # 0x5C
+    jump @invalid_command                                       # 0x5D
+    jump @command_operation_xor                                 # 0x5E - '^', bitwise xor.
+    jump @invalid_command                                       # 0x5F
+    jump @invalid_command                                       # 0x60
+    jump @invalid_command                                       # 0x61 - 'a'
+    jump @invalid_command                                       # 0x62 - 'b'
+    jump @invalid_command                                       # 0x63 - 'c'
+    jump @command_read_decimal_integer                          # 0x64 - 'd', read decimal integer.
+    jump @invalid_command                                       # 0x65 - 'e'
+    jump @invalid_command                                       # 0x66 - 'f'
+    jump @invalid_command                                       # 0x67 - 'g'
+    jump @invalid_command                                       # 0x68 - 'h'
+    jump @invalid_command                                       # 0x69 - 'i'
+    jump @invalid_command                                       # 0x6A - 'j'
+    jump @invalid_command                                       # 0x6B - 'k'
+    jump @invalid_command                                       # 0x6C - 'l'
+    jump @invalid_command                                       # 0x6D - 'm'
+    jump @invalid_command                                       # 0x6E - 'n'
+    jump @invalid_command                                       # 0x6F - 'o'
+    jump @invalid_command                                       # 0x70 - 'p'
+    jump @invalid_command                                       # 0x71 - 'q'
+    jump @reset                                                 # 0x72 - 'r', reset calculator.
+    jump @invalid_command                                       # 0x73 - 's'
+    jump @invalid_command                                       # 0x74 - 't'
+    jump @invalid_command                                       # 0x75 - 'u'
+    jump @invalid_command                                       # 0x76 - 'v'
+    jump @invalid_command                                       # 0x77 - 'w'
+    jump @command_read_hex_integer                              # 0x78 - 'x', read hexadecimal integer.
+    jump @invalid_command                                       # 0x79 - 'y'
+    jump @invalid_command                                       # 0x7A - 'z'
+    jump @invalid_command                                       # 0x7B
+    jump @command_operation_or                                  # 0x7C - '|', bitwise or.
+    jump @invalid_command                                       # 0x7D
+    jump @command_operation_invert                              # 0x7E - '~', bitwise flip.
+    jump @invalid_command                                       # 0x7F
+    jump @invalid_command                                       # 0x80
+    jump @invalid_command                                       # 0x81
+    jump @invalid_command                                       # 0x82
+    jump @invalid_command                                       # 0x83
+    jump @invalid_command                                       # 0x84
+    jump @invalid_command                                       # 0x85
+    jump @invalid_command                                       # 0x86
+    jump @invalid_command                                       # 0x87
+    jump @invalid_command                                       # 0x88
+    jump @invalid_command                                       # 0x89
+    jump @invalid_command                                       # 0x8A
+    jump @invalid_command                                       # 0x8B
+    jump @invalid_command                                       # 0x8C
+    jump @invalid_command                                       # 0x8D
+    jump @invalid_command                                       # 0x8E
+    jump @invalid_command                                       # 0x8F
+    jump @invalid_command                                       # 0x90
+    jump @invalid_command                                       # 0x91
+    jump @invalid_command                                       # 0x92
+    jump @invalid_command                                       # 0x93
+    jump @invalid_command                                       # 0x94
+    jump @invalid_command                                       # 0x95
+    jump @invalid_command                                       # 0x96
+    jump @invalid_command                                       # 0x97
+    jump @invalid_command                                       # 0x98
+    jump @invalid_command                                       # 0x99
+    jump @invalid_command                                       # 0x9A
+    jump @invalid_command                                       # 0x9B
+    jump @invalid_command                                       # 0x9C
+    jump @invalid_command                                       # 0x9D
+    jump @invalid_command                                       # 0x9E
+    jump @invalid_command                                       # 0x9F
+    jump @invalid_command                                       # 0xA0
+    jump @invalid_command                                       # 0xA1
+    jump @invalid_command                                       # 0xA2
+    jump @invalid_command                                       # 0xA3
+    jump @invalid_command                                       # 0xA4
+    jump @invalid_command                                       # 0xA5
+    jump @invalid_command                                       # 0xA6
+    jump @invalid_command                                       # 0xA7
+    jump @invalid_command                                       # 0xA8
+    jump @invalid_command                                       # 0xA9
+    jump @invalid_command                                       # 0xAA
+    jump @invalid_command                                       # 0xAB
+    jump @invalid_command                                       # 0xAC
+    jump @invalid_command                                       # 0xAD
+    jump @invalid_command                                       # 0xAE
+    jump @invalid_command                                       # 0xAF
+    jump @invalid_command                                       # 0xB0
+    jump @invalid_command                                       # 0xB1
+    jump @invalid_command                                       # 0xB2
+    jump @invalid_command                                       # 0xB3
+    jump @invalid_command                                       # 0xB4
+    jump @invalid_command                                       # 0xB5
+    jump @invalid_command                                       # 0xB6
+    jump @invalid_command                                       # 0xB7
+    jump @invalid_command                                       # 0xB8
+    jump @invalid_command                                       # 0xB9
+    jump @invalid_command                                       # 0xBA
+    jump @invalid_command                                       # 0xBB
+    jump @invalid_command                                       # 0xBC
+    jump @invalid_command                                       # 0xBD
+    jump @invalid_command                                       # 0xBE
+    jump @invalid_command                                       # 0xBF
+    jump @invalid_command                                       # 0xC0
+    jump @invalid_command                                       # 0xC1
+    jump @invalid_command                                       # 0xC2
+    jump @invalid_command                                       # 0xC3
+    jump @invalid_command                                       # 0xC4
+    jump @invalid_command                                       # 0xC5
+    jump @invalid_command                                       # 0xC6
+    jump @invalid_command                                       # 0xC7
+    jump @invalid_command                                       # 0xC8
+    jump @invalid_command                                       # 0xC9
+    jump @invalid_command                                       # 0xCA
+    jump @invalid_command                                       # 0xCB
+    jump @invalid_command                                       # 0xCC
+    jump @invalid_command                                       # 0xCD
+    jump @invalid_command                                       # 0xCE
+    jump @invalid_command                                       # 0xCF
+    jump @invalid_command                                       # 0xD0
+    jump @invalid_command                                       # 0xD1
+    jump @invalid_command                                       # 0xD2
+    jump @invalid_command                                       # 0xD3
+    jump @invalid_command                                       # 0xD4
+    jump @invalid_command                                       # 0xD5
+    jump @invalid_command                                       # 0xD6
+    jump @invalid_command                                       # 0xD7
+    jump @invalid_command                                       # 0xD8
+    jump @invalid_command                                       # 0xD9
+    jump @invalid_command                                       # 0xDA
+    jump @invalid_command                                       # 0xDB
+    jump @invalid_command                                       # 0xDC
+    jump @invalid_command                                       # 0xDD
+    jump @invalid_command                                       # 0xDE
+    jump @invalid_command                                       # 0xDF
+    jump @invalid_command                                       # 0xE0
+    jump @invalid_command                                       # 0xE1
+    jump @invalid_command                                       # 0xE2
+    jump @invalid_command                                       # 0xE3
+    jump @invalid_command                                       # 0xE4
+    jump @invalid_command                                       # 0xE5
+    jump @invalid_command                                       # 0xE6
+    jump @invalid_command                                       # 0xE7
+    jump @invalid_command                                       # 0xE8
+    jump @invalid_command                                       # 0xE9
+    jump @invalid_command                                       # 0xEA
+    jump @invalid_command                                       # 0xEB
+    jump @invalid_command                                       # 0xEC
+    jump @invalid_command                                       # 0xED
+    jump @invalid_command                                       # 0xEE
+    jump @invalid_command                                       # 0xEF
+    jump @invalid_command                                       # 0xF0
+    jump @invalid_command                                       # 0xF1
+    jump @invalid_command                                       # 0xF2
+    jump @invalid_command                                       # 0xF3
+    jump @invalid_command                                       # 0xF4
+    jump @invalid_command                                       # 0xF5
+    jump @invalid_command                                       # 0xF6
+    jump @invalid_command                                       # 0xF7
+    jump @invalid_command                                       # 0xF8
+    jump @invalid_command                                       # 0xF9
+    jump @invalid_command                                       # 0xFA
+    jump @invalid_command                                       # 0xFB
+    jump @invalid_command                                       # 0xFC
+    jump @invalid_command                                       # 0xFD
+    jump @invalid_command                                       # 0xFE
+    jump @invalid_command                                       # 0xFF
+}
+
+!at 0x8000 {
+    @MESSAGE_INIT
+    "\n _____     _           _____     _         _     _\n|  _  |_ _|_|___ _____|     |___| |___ _ _| |___| |_ ___ ___ \n|     |_'_| | . |     |   --| .'| |  _| | | | .'|  _| . |  _|\n|__|__|_,_|_|___|_|_|_|_____|__,|_|___|___|_|__,|_| |___|_|\n\n    (+) v0.1.0       (+) Type 'h' for more information.\n"
+}
