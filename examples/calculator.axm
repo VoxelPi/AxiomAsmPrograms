@@ -1,6 +1,7 @@
 # Version history:
-# 0.1.0 Initial release.
-# 0.2.0 Added multiply and help command.
+# 0.1.0 - Initial release.
+# 0.2.0 - Added multiply and help commands.
+# 0.3.0 - Added logical shift commands.
 
 # MEMORY MAP:
 # 0x0001: Stack pointer
@@ -978,6 +979,118 @@ R1 = 0x00
     jump @store_result
 }
 
+@command_operation_shift_left {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    {
+        # Check if B is > 16.
+        R3 = R5 and 0xF0
+        R3 = R3 or R6
+        if R3 != 0
+        {
+            R1 = 0
+            R2 = 0
+            jump @store_result
+        }
+
+        R1 = R7
+        R2 = R8
+        jump @store_result if R5 == 0 # Early exit if B == 0
+        {
+            # Perform shift.
+            R1 =  shift left R1
+            R2 = rotate left R2
+
+            R5 -= 1
+            repeat if R5 != 0
+        }
+    }
+
+    jump @store_result
+}
+
+@command_operation_shift_right {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    {
+        # Check if B is > 16.
+        R3 = R5 and 0xF0
+        R3 = R3 or R6
+        if R3 != 0
+        {
+            R1 = 0
+            R2 = 0
+            jump @store_result
+        }
+
+        R1 = R7
+        R2 = R8
+        jump @store_result if R5 == 0 # Early exit if B == 0
+        {
+            # Perform shift.
+            R2 =  shift right R2
+            R1 = rotate right R1
+
+            R5 -= 1
+            repeat if R5 != 0
+        }
+    }
+
+    jump @store_result
+}
+
 # Command jump table.
 !at 0x7F00 {
     jump @invalid_command                                       # 0x00
@@ -1040,9 +1153,9 @@ R1 = 0x00
     jump @command_read_decimal_integer_direct                   # 0x39 - '9', Direct decimal input.
     jump @invalid_command                                       # 0x3A
     jump @invalid_command                                       # 0x3B
-    jump @invalid_command                                       # 0x3C
+    jump @command_operation_shift_left                          # 0x3C - '<', logical shift left.
     jump @invalid_command                                       # 0x3D
-    jump @invalid_command                                       # 0x3E
+    jump @command_operation_shift_right                         # 0x3E - '>', logical shift right.
     jump @invalid_command                                       # 0x3F
     jump @invalid_command                                       # 0x40
     jump @invalid_command                                       # 0x41 - 'A'
@@ -1240,10 +1353,10 @@ R1 = 0x00
 
 !at 0x8000 {
     @MESSAGE_INIT
-    "\n _____     _           _____     _         _     _\n|  _  |_ _|_|___ _____|     |___| |___ _ _| |___| |_ ___ ___ \n|     |_'_| | . |     |   --| .'| |  _| | | | .'|  _| . |  _|\n|__|__|_,_|_|___|_|_|_|_____|__,|_|___|___|_|__,|_| |___|_|\n\n    (+) v0.1.0       (+) Type 'h' for more information.\n"
+    "\n _____     _           _____     _         _     _\n|  _  |_ _|_|___ _____|     |___| |___ _ _| |___| |_ ___ ___ \n|     |_'_| | . |     |   --| .'| |  _| | | | .'|  _| . |  _|\n|__|__|_,_|_|___|_|_|_|_____|__,|_|___|___|_|__,|_| |___|_|\n\n    (+) v0.3.0       (+) Type 'h' for more information.\n"
 }
 
 !at 0x9000 {
     @MESSAGE_HELP
-    "\nAVAILABLE COMMANDS:\n\nINPUTS:\n  0-9: Decimal input.\n    d: Decimal input.\n    x: Hexadecimal input.\n\nOPERATIONS (number of arguments):\n  + (2): Addition.\n  - (2): Subtraction.\n  * (2): Multiplication.\n  & (2): Bitwise AND.\n  | (2): Bitwise OR.\n  ^ (2): Bitwise OR.\n  ~ (1): Bitwise FLIP.\n\nOTHER:\n  h (0): Print the help page.\n  r (0): Reset the calculator.\n"
+    "\nAVAILABLE COMMANDS:\n\nINPUTS:\n  0-9: Decimal input.\n    d: Decimal input.\n    x: Hexadecimal input.\n\nOPERATIONS (number of arguments):\n  + (2): Addition.\n  - (2): Subtraction.\n  * (2): Multiplication.\n  < (2): Logical shift left.\n  > (2): Logical shift right.\n  & (2): Bitwise AND.\n  | (2): Bitwise OR.\n  ^ (2): Bitwise OR.\n  ~ (1): Bitwise FLIP.\n\nOTHER:\n  h (0): Print the help page.\n  r (0): Reset the calculator.\n"
 }
