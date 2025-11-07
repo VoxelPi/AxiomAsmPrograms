@@ -1,3 +1,7 @@
+# Version history:
+# 0.1.0 Initial release.
+# 0.2.0 Added multiply and help command.
+
 # MEMORY MAP:
 # 0x0001: Stack pointer
 # 0x0100-0x01FF: Data page 1
@@ -325,6 +329,23 @@ R1 = 0x00
     }
 
     write '\n'
+    jump @calculator_main
+}
+
+@command_print_help {
+    R2 = 0x90
+    R1 = 0x00
+    {
+        I1 = R2, 0x00
+        R3 = [R1]
+        exit if R3 == 0
+        write R3
+
+        R1 = R1 + 1
+        R2 = R2 + 0 with carry
+        repeat
+    }
+
     jump @calculator_main
 }
 
@@ -739,6 +760,88 @@ R1 = 0x00
     jump @store_result
 }
 
+@command_operation_multiplication {
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    # Perform 16bit multiplication.
+    # Value A in (R8, R7)
+    # Value B in (R6, R5)
+    {
+        # Make sure that A > B
+        # If not, swap A and B
+        R3 = R7 - R5
+        R4 = R8 - R6 with carry
+        if R4 < 0
+        {
+            R3 = R8
+            R8 = R6
+            R6 = R3
+
+            R3 = R7
+            R7 = R5
+            R5 = R3
+        }
+
+        # Initialize output.
+        R1 = 0
+        R2 = 0
+
+        # Check if B == 0, in that case early exit.
+        R3 = R5 or R6
+        jump @store_result if R3 == 0
+
+        {
+            # Check if current bit 0 of B is set. If true, add shifted A to sum
+            R3 = R5 and 1
+            if R3 != 0
+            {
+                R1 = R1 + R7
+                R2 = R2 + R8 with carry
+            }
+
+            # Shift A one to the left.
+            R7 =  shift left R7
+            R8 = rotate left R8
+
+            # Shift B one to the right.
+            R6 = rotate right R6
+            R5 =  shift right R5
+
+            # Check if B == 0
+            R3 = R5 or R6
+            repeat if R3 != 0
+        }
+    }
+
+    jump @store_result
+}
+
 @command_operation_and {
     # Number of expected arguments (used by missing arguments handler)
     R1 = 2
@@ -919,7 +1022,7 @@ R1 = 0x00
     jump @invalid_command                                       # 0x27
     jump @invalid_command                                       # 0x28
     jump @invalid_command                                       # 0x29
-    jump @invalid_command                                       # 0x2A - '*'
+    jump @command_operation_multiplication                      # 0x2A - '*'
     jump @command_operation_addition                            # 0x2B - '+', 16bit arithmetic addition.
     jump @invalid_command                                       # 0x2C
     jump @command_operation_subtraction                         # 0x2D - '-', 16bit arithmetic subtraction.
@@ -949,7 +1052,7 @@ R1 = 0x00
     jump @invalid_command                                       # 0x45 - 'E'
     jump @invalid_command                                       # 0x46 - 'F'
     jump @invalid_command                                       # 0x47 - 'G'
-    jump @invalid_command                                       # 0x48 - 'H'
+    jump @command_print_help                                    # 0x48 - 'H', print help page.
     jump @invalid_command                                       # 0x49 - 'I'
     jump @invalid_command                                       # 0x4A - 'J'
     jump @invalid_command                                       # 0x4B - 'K'
@@ -981,7 +1084,7 @@ R1 = 0x00
     jump @invalid_command                                       # 0x65 - 'e'
     jump @invalid_command                                       # 0x66 - 'f'
     jump @invalid_command                                       # 0x67 - 'g'
-    jump @invalid_command                                       # 0x68 - 'h'
+    jump @command_print_help                                    # 0x68 - 'h', print help page.
     jump @invalid_command                                       # 0x69 - 'i'
     jump @invalid_command                                       # 0x6A - 'j'
     jump @invalid_command                                       # 0x6B - 'k'
@@ -1138,4 +1241,9 @@ R1 = 0x00
 !at 0x8000 {
     @MESSAGE_INIT
     "\n _____     _           _____     _         _     _\n|  _  |_ _|_|___ _____|     |___| |___ _ _| |___| |_ ___ ___ \n|     |_'_| | . |     |   --| .'| |  _| | | | .'|  _| . |  _|\n|__|__|_,_|_|___|_|_|_|_____|__,|_|___|___|_|__,|_| |___|_|\n\n    (+) v0.1.0       (+) Type 'h' for more information.\n"
+}
+
+!at 0x9000 {
+    @MESSAGE_HELP
+    "\nAVAILABLE COMMANDS:\n\nINPUTS:\n  0-9: Decimal input.\n    d: Decimal input.\n    x: Hexadecimal input.\n\nOPERATIONS (number of arguments):\n  + (2): Addition.\n  - (2): Subtraction.\n  * (2): Multiplication.\n  & (2): Bitwise AND.\n  | (2): Bitwise OR.\n  ^ (2): Bitwise OR.\n  ~ (1): Bitwise FLIP.\n\nOTHER:\n  h (0): Print the help page.\n  r (0): Reset the calculator.\n"
 }
