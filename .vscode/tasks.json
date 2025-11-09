@@ -16,7 +16,7 @@
         {
             "label": "axiom flash",
             "type": "shell",
-            "command": "axiom bridge upload \"${workspaceFolder}\\output\\${fileBasenameNoExtension}.bin\" -p COM7",
+            "command": "axiom bridge upload \"${workspaceFolder}\\output\\${fileBasenameNoExtension}.bin\" -p COM7 -a ax08",
             "problemMatcher": [],
         }
     ]
