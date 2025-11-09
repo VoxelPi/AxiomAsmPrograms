@@ -2,6 +2,7 @@
 # 0.1.0 - Initial release.
 # 0.2.0 - Added multiply and help commands.
 # 0.3.0 - Added logical shift commands.
+# 0.4.0 - Added division and remainder commands.
 
 # MEMORY MAP:
 # 0x0001: Stack pointer
@@ -843,6 +844,125 @@ R1 = 0x00
     jump @store_result
 }
 
+@command_operation_division {
+    # Store command.
+    I1 = 0x0000
+    [0x80] = R1
+
+    # Number of expected arguments (used by missing arguments handler)
+    R1 = 2
+
+    # Load stack pointer.
+    I1 = 0x0000
+    R2 = [0x01] # Stack pointer
+    R3 = R2
+
+    # Load B into R6, R5.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R5 = [R3]
+    I1 = 0x0200
+    R6 = [R3]
+
+    # Load A into R8, R7.
+    jump @missing_arguments if R3 == 0
+    R3 -= 1
+    I1 = 0x0100
+    R7 = [R3]
+    I1 = 0x0200
+    R8 = [R3]
+
+    # Store stack pointer.
+    I1 = 0x0000
+    [0x01] = R3
+
+    # Perform 16bit division.
+    # Denumerator in (R6, R5)
+    # Remainder in (R4, R3)
+    I1 = 0x0000
+    R1 = 16 # Index register
+    R3 = 0 # Remainder[ 7..0]
+    R4 = 0 # Remainder[15..8]
+    [0x81] = R7 # Store numerator R7
+    [0x82] = R8 # Store numerator R8
+    [0x83] = 0 # quotient
+    [0x84] = 0 # quotient
+    {
+        {
+            # Numerator   in (R8, R7)
+            # Denumerator in (R6, R5)
+            # Remainder   in (R4, R3)
+
+            # Load numerator
+            R7 = [0x81]
+            R8 = [0x82]
+
+            # Shift current MSb of the numerator as LSb into the remainder.
+            R7 = shift left R7
+            R8 = rotate left R8
+            R3 = rotate left R3
+            R4 = rotate left R4
+
+            # Store numerator
+            [0x81] = R7
+            [0x82] = R8
+        }
+
+        {
+            # Quotient    in (R8, R7)
+            # Denumerator in (R6, R5)
+            # Remainder   in (R4, R3)
+
+            # Load quotient
+            R7 = [0x83]
+            R8 = [0x84]
+
+            # Shift quotient so that current bit is at position 0.
+            R7 = shift left R7
+            R8 = rotate left R8
+
+            # Check if remainder is larger than denumerator.
+            # If yes, subtract denumerator from remainder and add one to the quotient.
+            R2 = R3 - R5
+            R2 = R4 - R6 with carry
+            if R2 >= 0
+            {
+                R3 = R3 - R5
+                R4 = R4 - R6 with carry
+                R7 = R7 or 1
+            }
+
+            # Store quotient
+            [0x83] = R7
+            [0x84] = R8
+        }
+
+        # Loop
+        R1 -= 1
+        repeat if R1 > 0
+    }
+
+
+    R1 = [0x80]
+    R1 -= '/'
+
+    if R1 == 0
+    {
+        # Load quotient into (R2, R1)
+        R1 = [0x83]
+        R2 = [0x84]
+        jump @store_result
+    }
+    # else
+    {
+        # Load remainder into (R2, R1)
+        R1 = R3
+        R2 = R4
+        jump @store_result
+    }
+}
+
 @command_operation_and {
     # Number of expected arguments (used by missing arguments handler)
     R1 = 2
@@ -1130,17 +1250,17 @@ R1 = 0x00
     jump @invalid_command                                       # 0x22
     jump @invalid_command                                       # 0x23
     jump @invalid_command                                       # 0x24
-    jump @invalid_command                                       # 0x25 - '%'
+    jump @command_operation_division                            # 0x25 - '%', 16bit unsigned division remainder.
     jump @command_operation_and                                 # 0x26 - '&', bitwise and.
     jump @invalid_command                                       # 0x27
     jump @invalid_command                                       # 0x28
     jump @invalid_command                                       # 0x29
-    jump @command_operation_multiplication                      # 0x2A - '*'
+    jump @command_operation_multiplication                      # 0x2A - '*', 16bit unsigned multiplication.
     jump @command_operation_addition                            # 0x2B - '+', 16bit arithmetic addition.
     jump @invalid_command                                       # 0x2C
     jump @command_operation_subtraction                         # 0x2D - '-', 16bit arithmetic subtraction.
     jump @invalid_command                                       # 0x2E
-    jump @invalid_command                                       # 0x2F - '/'
+    jump @command_operation_division                            # 0x2F - '/', 16bit unsigned division.
     jump @command_read_decimal_integer_direct                   # 0x30 - '0', Direct decimal input.
     jump @command_read_decimal_integer_direct                   # 0x31 - '1', Direct decimal input.
     jump @command_read_decimal_integer_direct                   # 0x32 - '2', Direct decimal input.
@@ -1353,10 +1473,10 @@ R1 = 0x00
 
 !at 0x8000 {
     @MESSAGE_INIT
-    "\n _____     _           _____     _         _     _\n|  _  |_ _|_|___ _____|     |___| |___ _ _| |___| |_ ___ ___ \n|     |_'_| | . |     |   --| .'| |  _| | | | .'|  _| . |  _|\n|__|__|_,_|_|___|_|_|_|_____|__,|_|___|___|_|__,|_| |___|_|\n\n    (+) v0.3.0       (+) Type 'h' for more information.\n"
+    "\n _____     _           _____     _         _     _\n|  _  |_ _|_|___ _____|     |___| |___ _ _| |___| |_ ___ ___ \n|     |_'_| | . |     |   --| .'| |  _| | | | .'|  _| . |  _|\n|__|__|_,_|_|___|_|_|_|_____|__,|_|___|___|_|__,|_| |___|_|\n\n    (+) v0.4.0       (+) Type 'h' for more information.\n"
 }
 
 !at 0x9000 {
     @MESSAGE_HELP
-    "\nAVAILABLE COMMANDS:\n\nINPUTS:\n  0-9: Decimal input.\n    d: Decimal input.\n    x: Hexadecimal input.\n\nOPERATIONS (number of arguments):\n  + (2): Addition.\n  - (2): Subtraction.\n  * (2): Multiplication.\n  < (2): Logical shift left.\n  > (2): Logical shift right.\n  & (2): Bitwise AND.\n  | (2): Bitwise OR.\n  ^ (2): Bitwise OR.\n  ~ (1): Bitwise FLIP.\n\nOTHER:\n  h (0): Print the help page.\n  r (0): Reset the calculator.\n"
+    "\nAVAILABLE COMMANDS:\n\nINPUTS:\n  0-9: Decimal input.\n    d: Decimal input.\n    x: Hexadecimal input.\n\nOPERATIONS (number of arguments):\n  + (2): Addition.\n  - (2): Subtraction.\n  * (2): Multiplication.\n  / (2): Division.\n  % (2): Remainder.\n  < (2): Logical shift left.\n  > (2): Logical shift right.\n  & (2): Bitwise AND.\n  | (2): Bitwise OR.\n  ^ (2): Bitwise XOR.\n  ~ (1): Bitwise FLIP.\n\nOTHER:\n  h (0): Print the help page.\n  r (0): Reset the calculator.\n"
 }

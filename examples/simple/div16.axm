@@ -1,0 +1,85 @@
+{
+    R8 = 0
+    R7 = 243
+
+    R6 = 0
+    R5 = 13
+
+    R4 = 0
+    R3 = 0
+
+    # Perform 16bit division.
+    # Denumerator in (R6, R5)
+    # Remainder in (R4, R3)
+    I1 = 0x0000
+    R1 = 16 # Index register
+    [0x81] = R7 # Store numerator R7
+    [0x82] = R8 # Store numerator R8
+    [0x83] = 0 # quotient
+    [0x84] = 0 # quotient
+    {
+        {
+            # Numerator   in (R8, R7)
+            # Denumerator in (R6, R5)
+            # Remainder   in (R4, R3)
+
+            # Load numerator
+            R7 = [0x81]
+            R8 = [0x82]
+
+            # Shift current MSb of the numerator as LSb into the remainder.
+            R7 = shift left R7
+            R8 = rotate left R8
+            R3 = rotate left R3
+            R4 = rotate left R4
+
+            # Store numerator
+            [0x81] = R7
+            [0x82] = R8
+        }
+
+        {
+            # Quotient    in (R8, R7)
+            # Denumerator in (R6, R5)
+            # Remainder   in (R4, R3)
+
+            # Load quotient
+            R7 = [0x83]
+            R8 = [0x84]
+
+            # Shift quotient so that current bit is at position 0.
+            R7 = shift left R7
+            R8 = rotate left R8
+
+            # Check if remainder is larger than denumerator.
+            # If yes, subtract denumerator from remainder and add one to the quotient.
+            R2 = R3 - R5
+            R2 = R4 - R6 with carry
+            if R2 >= 0
+            {
+                R3 = R3 - R5
+                R4 = R4 - R6 with carry
+                R7 = R7 or 1
+            }
+
+            # Store quotient
+            [0x83] = R7
+            [0x84] = R8
+        }
+
+        # Loop
+        R1 -= 1
+        repeat if R1 > 0
+    }
+
+    # Load quotient into (R2, R1)
+    R2 = [0x84]
+    R1 = [0x83]
+    write R2
+    write R1
+    write R4
+    write R3
+
+    break
+    repeat
+}

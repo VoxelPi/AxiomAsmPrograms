@@ -1,0 +1,41 @@
+{
+    R1 = 5 # Numerator
+    R2 = 2 # Denumerator
+
+    R3 = 0 # Quotient
+    R4 = 0 # Remainder
+
+    if R2 == 0
+    {
+        # BAD
+    }
+
+    R5 = 8
+    {
+        # Shift current MSb of the numerator as LSb into the remainder.
+        R1 = shift left R1
+        R4 = rotate left R4
+
+        # Shift quotient so that current bit is at position 0.
+        R3 = shift left R3
+
+        # Check if remainder is larger than denumerator.
+        # If yes, subtract denumerator from remainder and add one to the quotient.
+        R6 = R4 - R2
+        if R6 >= 0
+        {
+            R4 -= R2
+            R3 = R3 or 1
+        }
+
+        # Loop
+        R5 -= 1
+        repeat if R5 > 0
+    }
+
+    write R3
+    write R4
+    break
+    repeat
+}
+}
