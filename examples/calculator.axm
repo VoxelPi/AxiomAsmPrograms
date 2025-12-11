@@ -180,7 +180,7 @@ R1 = 0x00
 }
 
 @store_result {
-    # R2, R1 store the result.
+    # Result is in R2, R1. Store the result.
     I1 = 0x0000
     R3 = [0x01] # Stack pointer
     R4 = R3 + 1
@@ -688,6 +688,69 @@ R1 = 0x00
     }
 }
 
+@command_read_binary_integer {
+    # Read input
+    @read_input {
+        R1 = 0 # bits 0...7
+        R2 = 0 # bits 8..15
+        R7 = 0 # input
+        R8 = 16 # Counter, we want to read 16 bit.
+
+        # Print start.
+        write '\n'
+        write 'I'
+        write 'n'
+        write 'p'
+        write 'u'
+        write 't'
+        write ':'
+        write 0x20
+        write '0'
+        write 'b'
+        write 0x20
+
+        {
+            # Read character.
+            {
+                R7 = poll
+                repeat if R7 == 0
+            }
+            R7 = read
+
+            # Exit input on carrige return. TODO: newline?
+            R6 = R7 - 0x0D
+            exit @read_input if R6 == 0
+
+            # Handle spaces.
+            # If a space is entered echo it and repeat the input WITHOUT incrementing the pointer.
+            R6 = R7 - 0x20
+            write R7 if R6 == 0
+            repeat if R6 == 0
+
+            # Handle digits.
+            R6 = R7 - '1'
+            repeat if R6 > 0
+            R6 = R7 - '0'
+            repeat if R6 < 0
+
+            # Valid digit.
+            write R7
+
+            # Shift previous digits.
+            R1 = shift left R1
+            R2 = rotate left R2
+
+            # Or new digit.
+            R1 = R1 or R6
+
+            # Decrement counter
+            R8 -= 1
+            repeat if R8 > 0
+        }
+    }
+
+    jump @store_result
+}
 
 
 @command_operation_addition {
@@ -1279,7 +1342,7 @@ R1 = 0x00
     jump @invalid_command                                       # 0x3F
     jump @invalid_command                                       # 0x40
     jump @invalid_command                                       # 0x41 - 'A'
-    jump @invalid_command                                       # 0x42 - 'B'
+    jump @command_read_binary_integer                           # 0x42 - 'B'
     jump @invalid_command                                       # 0x43 - 'C'
     jump @command_read_decimal_integer                          # 0x44 - 'D', read decimal integer.
     jump @invalid_command                                       # 0x45 - 'E'
@@ -1311,7 +1374,7 @@ R1 = 0x00
     jump @invalid_command                                       # 0x5F
     jump @invalid_command                                       # 0x60
     jump @invalid_command                                       # 0x61 - 'a'
-    jump @invalid_command                                       # 0x62 - 'b'
+    jump @command_read_binary_integer                           # 0x62 - 'b'
     jump @invalid_command                                       # 0x63 - 'c'
     jump @command_read_decimal_integer                          # 0x64 - 'd', read decimal integer.
     jump @invalid_command                                       # 0x65 - 'e'
@@ -1478,5 +1541,5 @@ R1 = 0x00
 
 !at 0x9000 {
     @MESSAGE_HELP
-    "\nAVAILABLE COMMANDS:\n\nINPUTS:\n  0-9: Decimal input.\n    d: Decimal input.\n    x: Hexadecimal input.\n\nOPERATIONS (number of arguments):\n  + (2): Addition.\n  - (2): Subtraction.\n  * (2): Multiplication.\n  / (2): Division.\n  % (2): Remainder.\n  < (2): Logical shift left.\n  > (2): Logical shift right.\n  & (2): Bitwise AND.\n  | (2): Bitwise OR.\n  ^ (2): Bitwise XOR.\n  ~ (1): Bitwise FLIP.\n\nOTHER:\n  h (0): Print the help page.\n  r (0): Reset the calculator.\n"
+    "\nAVAILABLE COMMANDS:\n\nINPUTS:\n  0-9: Decimal input.\n    d: Decimal input.\n    x: Hexadecimal input.\n    b: Binary input.\n\nOPERATIONS (number of arguments):\n  + (2): Addition.\n  - (2): Subtraction.\n  * (2): Multiplication.\n  / (2): Division.\n  % (2): Remainder.\n  < (2): Logical shift left.\n  > (2): Logical shift right.\n  & (2): Bitwise AND.\n  | (2): Bitwise OR.\n  ^ (2): Bitwise XOR.\n  ~ (1): Bitwise FLIP.\n\nOTHER:\n  h (0): Print the help page.\n  r (0): Reset the calculator.\n"
 }
