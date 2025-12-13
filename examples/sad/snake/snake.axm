@@ -37,6 +37,7 @@ $SNAKE_HEAD_DIR_I := 0x0004
 $SNAKE_HEAD_DIR   := 0x0006
 $SNAKE_LENGTH     := 0x0007
 $SNAKE_GROWTH     := 0x0008
+$GAME_ACTIVE      := 0x0080
 
 $DIRECTION_R := 0b00
 $DIRECTION_L := 0b01
@@ -581,6 +582,7 @@ I1 = $PAGE_VARIABLES
 [$SNAKE_HEAD_DIR_I] = 1
 [$SNAKE_LENGTH] = 3
 [$SNAKE_GROWTH] = 0
+[$GAME_ACTIVE] = 0
 
 I1 = $PAGE_TILEMAP
 [136] = $TILE_SNAKE_HEAD_L_
@@ -611,18 +613,11 @@ I1 = $PAGE_FOOD_LUT
     }
 }
 
-# Wait for first input
-{
-    R1 = poll
-    repeat if R1 == 0
-}
-# break
-
 # ======================================================================================================================
 # MAIN LOOP
 # ======================================================================================================================
 {
-    # Handle input
+    # Handle input.
     {
         R1 = poll
         exit if R1 == 0
@@ -674,12 +669,22 @@ I1 = $PAGE_FOOD_LUT
         {
             I1 = $PAGE_VARIABLES
 
+            # Mark input
+            [$GAME_ACTIVE] = 1
+
             # Read keycode
             {
                 R1 = poll
                 repeat if R1 == 0
             }
             R2 = read
+
+            # Handle escape key.
+            if R2 == 0
+            {
+                [$GAME_ACTIVE] = 0
+                jump @event_handled
+            }
 
             R3 = R2 - 'W'
             if R3 == 0
@@ -720,6 +725,11 @@ I1 = $PAGE_FOOD_LUT
         repeat
     }
 
+    # Update snake state.
+    I1 = $PAGE_VARIABLES
+    R1 = [$GAME_ACTIVE]
+    if R1 != 0
+    {
     # Load previous head state.
     I1 = $PAGE_VARIABLES
     R1 = [$SNAKE_HEAD_I]
@@ -833,14 +843,13 @@ I1 = $PAGE_FOOD_LUT
         R8 = [$SNAKE_LENGTH]
         R8 += 1
         [$SNAKE_LENGTH] =  R8
+        }
     }
-
-    # break
 
     # SLEEP ~ 0.5s
     {
-        R7 = 0xC4
-        R8 = 0x5
+        R7 = 0x00
+        R8 = 0x02
         {
             R7 = R7 - 1
             R8 = R8 - 0 with carry
