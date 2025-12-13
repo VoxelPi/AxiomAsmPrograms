@@ -29,7 +29,11 @@
 
     # MEMORY:
     #   PAGE 0x00: Variables
-    #       0x00: Snake length
+    #       0x00: Snake head x
+    #       0x01: Snake head y
+    #       0x02: Snake tail x
+    #       0x03: Snake tail y
+    #       0x04: Snake length
     #   PAGE 0x01: Level STATE
 }
 
@@ -57,7 +61,18 @@ $TID_SNAKE_TAIL_U := 0xAD
 $TID_SNAKE_TAIL_L := 0xAE
 $TID_SNAKE_TAIL_D := 0xAF
 
+$PAGE_VARIABLES := 0x0000
 $PAGE_TILEMAP := 0x0100
+
+$SNAKE_HEAD_X := 0x0000
+$SNAKE_HEAD_Y := 0x0001
+$SNAKE_TAIL_X := 0x0002
+$SNAKE_TAIL_Y := 0x0003
+$SNAKE_LENGTH := 0x0004
+
+# ======================================================================================================================
+# INIT
+# ======================================================================================================================
 
 # UPLOAD TEXTURES
 {
@@ -386,7 +401,7 @@ $PAGE_TILEMAP := 0x0100
     }
 }
 
-# INIT
+# INIT TILEMAP
 {
     # Init tilemap.
     R1 = 0
@@ -400,6 +415,18 @@ $PAGE_TILEMAP := 0x0100
         repeat if R1 != 0
     }
 }
+
+I1 = $PAGE_VARIABLES
+[$SNAKE_HEAD_X] = 8
+[$SNAKE_HEAD_Y] = 8
+[$SNAKE_TAIL_X] = 6
+[$SNAKE_TAIL_Y] = 8
+[$SNAKE_LENGTH] = 3
+
+I1 = $PAGE_TILEMAP
+[136] = $TID_SNAKE_HEAD_R
+[135] = $TID_SNAKE_X
+[134] = $TID_SNAKE_TAIL_R
 
 # UPLOAD TILEMAP
 {
@@ -415,8 +442,22 @@ $PAGE_TILEMAP := 0x0100
     }
 }
 
+# ======================================================================================================================
 # MAIN LOOP
+# ======================================================================================================================
 {
+
+
+    # SLEEP ~ 0.5s
+    {
+        R7 = 0xC4
+        R8 = 0x12
+        {
+            R7 = R7 - 1
+            R8 = R8 - 0 with carry
+            repeat if R8 >= 0
+        }
+    }
     repeat
 }
 
