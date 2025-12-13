@@ -822,6 +822,46 @@ I1 = $PAGE_FOOD_LUT
                 R5 = R4 and 0b10000000
                 if R5 != 0
                 {
+                    {
+                        R1 = poll
+                        repeat if R1 == 0
+                    }
+                    R1 = read
+
+                    # Handle mouse events.
+                    R2 = R1 - 1
+                    if R2 == 0
+                    {
+                        # Read X
+                        {
+                            R1 = poll
+                            repeat if R1 == 0
+                        }
+                        R1 = read
+
+                        # Read Y
+                        {
+                            R2 = poll
+                            repeat if R2 == 0
+                        }
+                        R2 = read
+
+                        jump @GAME_RESET
+                    }
+
+                    # Handle keyboard events.
+                    R2 = R1 - 2
+                    if R2 == 0
+                    {
+                        # Read keycode
+                        {
+                            R1 = poll
+                            repeat if R1 == 0
+                        }
+                        R1 = read
+                        jump @GAME_RESET
+                    }
+
                     jump @GAME_RESET
                 }
 
