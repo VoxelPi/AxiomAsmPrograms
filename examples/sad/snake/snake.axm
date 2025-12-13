@@ -26,6 +26,11 @@
     # SNAKE_TAIL_U: 0xA9: 1010 11 01
     # SNAKE_TAIL_L: 0xAA: 1010 11 10
     # SNAKE_TAIL_D: 0xAB: 1010 11 11
+
+    # MEMORY:
+    #   PAGE 0x00: Variables
+    #       0x00: Snake length
+    #   PAGE 0x01: Level STATE
 }
 
 $TID_EMPTY := 0x00
@@ -51,6 +56,8 @@ $TID_SNAKE_TAIL_R := 0xAC
 $TID_SNAKE_TAIL_U := 0xAD
 $TID_SNAKE_TAIL_L := 0xAE
 $TID_SNAKE_TAIL_D := 0xAF
+
+$PAGE_TILEMAP := 0x0100
 
 # UPLOAD TEXTURES
 {
@@ -379,12 +386,26 @@ $TID_SNAKE_TAIL_D := 0xAF
     }
 }
 
-# UPLOAD INITIAL TILEMAP
+# INIT
 {
-    # Send DEFAULT tilemap
+    # Init tilemap.
+    R1 = 0
+    {
+        I1 = $EMPTY_TILEMAP
+        R2 = [R1]
+        I1 = $PAGE_TILEMAP
+        [R1] = R2
+
+        R1 += 1
+        repeat if R1 != 0
+    }
+}
+
+# UPLOAD TILEMAP
+{
     write 0x02 # Send command id for texture upload.
-    R1 = $EMPTY_TILEMAP
-    I1 = $EMPTY_TILEMAP
+    I1 = $PAGE_TILEMAP
+    R1 = $PAGE_TILEMAP
     {
         R3 = [R1]
         write R3
