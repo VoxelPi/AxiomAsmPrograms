@@ -26,8 +26,9 @@
     #   PAGE 0x01: Level STATE
 }
 
-$PAGE_VARIABLES := 0x0000
-$PAGE_TILEMAP := 0x0100
+$PAGE_VARIABLES     := 0x0000
+$PAGE_TILEMAP       := 0x0100
+$PAGE_DIRECTION_LUT := 0x0200
 
 $SNAKE_HEAD_I     := 0x0000
 $SNAKE_TAIL_I     := 0x0002
@@ -578,6 +579,12 @@ I1 = $PAGE_TILEMAP
 [135] = $TILE_SNAKE_BODY_LR
 [134] = $TILE_SNAKE_TAIL__R
 
+I1 = $PAGE_DIRECTION_LUT
+[$DIRECTION_R] = 1
+[$DIRECTION_L] = -1
+[$DIRECTION_D] = 16
+[$DIRECTION_U] = -16
+
 # UPLOAD TILEMAP
 {
     write 0x02 # Send command id for texture upload.
@@ -693,6 +700,41 @@ I1 = $PAGE_TILEMAP
         write 0x03
         write R1
         write R4
+    }
+
+    # Load previous tail position.
+    I1 = $PAGE_VARIABLES
+    R1 = [$SNAKE_TAIL_I]
+
+    # Update previous tail state.
+    I1 = $PAGE_TILEMAP
+    R2 = [R1] # Previous tail state.
+    R2 = R2 and 0b00000011 # Tail "to" direction.
+    [R1] = $TILE_EMPTY
+    {
+        write 0x03
+        write R1
+        write $TILE_EMPTY
+    }
+
+    # Find next tail position.
+    I1 = $PAGE_DIRECTION_LUT
+    R3 = [R2]
+    R1 += R3
+
+    # Update new tail position.
+    I1 = $PAGE_VARIABLES
+    [$SNAKE_TAIL_I] = R1
+
+    # Update new tail state.
+    I1 = $PAGE_TILEMAP
+    R3 = [R1] # New tail state.
+    R3 = R3 and 0b11010011
+    [R1] = R3
+    {
+        write 0x03
+        write R1
+        write R3
     }
 
     # break
