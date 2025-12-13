@@ -29,6 +29,7 @@
 $PAGE_VARIABLES     := 0x0000
 $PAGE_TILEMAP       := 0x0100
 $PAGE_DIRECTION_LUT := 0x0200
+$PAGE_FOOD_LUT      := 0x0300
 
 $SNAKE_HEAD_I     := 0x0000
 $SNAKE_TAIL_I     := 0x0002
@@ -41,6 +42,9 @@ $DIRECTION_R := 0b00
 $DIRECTION_L := 0b01
 $DIRECTION_D := 0b10
 $DIRECTION_U := 0b11
+
+$FOOD_APPLE        := 1
+$FOOD_APPLE_GOLDEN := 4
 
 # ======================================================================================================================
 # INIT
@@ -553,6 +557,8 @@ $DIRECTION_U := 0b11
     }
 }
 
+@GAME_RESET
+
 # INIT TILEMAP
 {
     # Init tilemap.
@@ -586,6 +592,10 @@ I1 = $PAGE_DIRECTION_LUT
 [$DIRECTION_L] = -1
 [$DIRECTION_D] = 16
 [$DIRECTION_U] = -16
+
+I1 = $PAGE_FOOD_LUT
+[0] = 1 # Normal apple.
+[1] = 4 # Golden apple.
 
 # UPLOAD TILEMAP
 {
@@ -674,6 +684,36 @@ I1 = $PAGE_DIRECTION_LUT
     R2 = [$SNAKE_HEAD_DIR]
     R3 = [$SNAKE_HEAD_DIR_I]
 
+    # Perform collision checks.
+    {
+        I1 = $PAGE_TILEMAP
+        R4 = R1 + R3 # Calculate next position.
+        R4 = [R4]
+
+        # GAME OVER check
+        R5 = R4 and 0b10000000
+        if R5 != 0
+        {
+            jump @GAME_RESET
+        }
+
+        # Food check
+        R5 = R4 and 0b01000000
+        if R5 != 0
+        {
+            # Get food value.
+            I1 = $PAGE_FOOD_LUT
+            R5 = R4 and 0b00111111
+            R5 = [R5]
+
+            # Add food value to growth.
+            I1 = $PAGE_VARIABLES
+            R6 = [$SNAKE_GROWTH]
+            R6 += R5
+            [$SNAKE_GROWTH] = R6
+        }
+    }
+
     # Update previous head tile state.
     I1 = $PAGE_TILEMAP
     R4 = [R1]
@@ -706,8 +746,8 @@ I1 = $PAGE_DIRECTION_LUT
 
     # Update tail
     I1 = $PAGE_VARIABLES
-    R1 = [$SNAKE_GROWTH]
-    if R1 == 0
+    R8 = [$SNAKE_GROWTH]
+    if R8 == 0
     {
         # Load previous tail position.
         I1 = $PAGE_VARIABLES
@@ -744,7 +784,7 @@ I1 = $PAGE_DIRECTION_LUT
             write R3
         }
     }
-    if R1 != 0
+    if R8 != 0
     {
         R1 -= 1
         [$SNAKE_GROWTH] = R1
