@@ -592,17 +592,72 @@ I1 = $PAGE_TILEMAP
     }
 }
 
-# # Wait for first input
-# {
-#     R1 = poll
-#     repeat if R1 == 0
-# }
-break
+# Wait for first input
+{
+    R1 = poll
+    repeat if R1 == 0
+}
+# break
 
 # ======================================================================================================================
 # MAIN LOOP
 # ======================================================================================================================
 {
+    # Handle input
+    {
+        R1 = poll
+        exit if R1 == 0
+        R1 = read
+
+        # Handle keyboard events.
+        R2 = R1 - 2
+        if R2 == 0
+        {
+            I1 = $PAGE_VARIABLES
+
+            # Read keycode
+            {
+                R1 = poll
+                repeat if R1 == 0
+            }
+            R2 = read
+
+            R3 = R2 - 'W'
+            if R3 == 0
+            {
+                [$SNAKE_HEAD_DIR] = $DIRECTION_U
+                [$SNAKE_HEAD_DIR_I] = -16
+                jump @event_handled
+            }
+
+            R3 = R2 - 'S'
+            if R3 == 0
+            {
+                [$SNAKE_HEAD_DIR] = $DIRECTION_D
+                [$SNAKE_HEAD_DIR_I] = 16
+                jump @event_handled
+            }
+
+            R3 = R2 - 'A'
+            if R3 == 0
+            {
+                [$SNAKE_HEAD_DIR] = $DIRECTION_L
+                [$SNAKE_HEAD_DIR_I] = -1
+                jump @event_handled
+            }
+
+            R3 = R2 - 'D'
+            if R3 == 0
+            {
+                [$SNAKE_HEAD_DIR] = $DIRECTION_R
+                [$SNAKE_HEAD_DIR_I] = 1
+                jump @event_handled
+            }
+        }
+
+        @event_handled
+        repeat
+    }
 
     # Load previous head state.
     I1 = $PAGE_VARIABLES
@@ -640,18 +695,18 @@ break
         write R4
     }
 
-    break
+    # break
 
-    # # SLEEP ~ 0.5s
-    # {
-    #     R7 = 0xC4
-    #     R8 = 0x12
-    #     {
-    #         R7 = R7 - 1
-    #         R8 = R8 - 0 with carry
-    #         repeat if R8 >= 0
-    #     }
-    # }
+    # SLEEP ~ 0.5s
+    {
+        R7 = 0xC4
+        R8 = 0x5
+        {
+            R7 = R7 - 1
+            R8 = R8 - 0 with carry
+            repeat if R8 >= 0
+        }
+    }
     repeat
 }
 
