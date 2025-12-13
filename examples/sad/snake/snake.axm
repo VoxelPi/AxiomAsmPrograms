@@ -1,3 +1,15 @@
+#  _____ _____ _____ _____ _____
+# |   __|   | |  _  |  |  |   __|  (+) Version 0.1.0
+# |__   | | | |     |    -|   __|  (+) By Peter Smek
+# |_____|_|___|__|__|__|__|_____|
+#
+# VERSION HISTORY:
+#
+# - 0.1.0:
+#   Initial Release
+#
+
+# Clear input buffer.
 {
     R1 = poll
     exit if R1 == 0
