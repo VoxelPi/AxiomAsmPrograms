@@ -1,0 +1,1375 @@
+{
+    R1 = poll
+    exit if R1 == 0
+    R1 = read
+    repeat
+}
+
+{
+    # BIT 7: COLLISION BAD
+    # Bit 6: COLLISION GOOD
+
+    # 0b00 right
+    # 0b01 left
+    # 0b10 down
+    # 0b11 up
+
+    # MEMORY:
+    #   PAGE 0x00: Variables
+    #       0x00: snake head x
+    #       0x01: snake head y
+    #       0x02: snake tail x
+    #       0x03: snake tail y
+    #       0x04: sanke head dir x
+    #       0x05: sanke head dir y
+    #       0x06: snake length
+    #   PAGE 0x01: Level STATE
+}
+
+$PAGE_VARIABLES     := 0x0000
+$PAGE_TILEMAP       := 0x0100
+$PAGE_DIRECTION_LUT := 0x0200
+$PAGE_FOOD_LUT      := 0x0300
+
+$SNAKE_HEAD_I     := 0x0000
+$SNAKE_TAIL_I     := 0x0002
+$SNAKE_HEAD_DIR_I := 0x0004
+$SNAKE_HEAD_DIR   := 0x0006
+$SNAKE_LENGTH     := 0x0007
+$SNAKE_GROWTH     := 0x0008
+$FOOD_TO_SPAWN    := 0x0020
+$GAME_ACTIVE      := 0x0080
+$RANDOM_SEED      := 0x00F0
+
+$DIRECTION_R := 0b00
+$DIRECTION_L := 0b01
+$DIRECTION_D := 0b10
+$DIRECTION_U := 0b11
+
+$INITIAL_FOOD := 1
+
+# The delay between game steps.
+$GAME_STEP_DELAY_H := 0x02
+$GAME_STEP_DELAY_L := 0x00
+
+# For random number generator.
+$RANDOM_SEED_INIT := 0
+$RANDOM_MAGIC     := 0x5C
+
+# ======================================================================================================================
+# INIT
+# ======================================================================================================================
+
+# UPLOAD TEXTURES
+{
+    # Send EMPTY texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_EMPTY # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_EMPTY
+        I1 = $TEXTURE_EMPTY
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send APPLE texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_APPLE # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_APPLE
+        I1 = $TEXTURE_APPLE
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send APPLE_GOLDEN texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_APPLE_GOLDEN # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_APPLE_GOLDEN
+        I1 = $TEXTURE_APPLE_GOLDEN
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send WALL texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_WALL # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_WALL
+        I1 = $TEXTURE_WALL
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_HEAD_R_ texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_HEAD_R_ # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_HEAD_R_
+        I1 = $TEXTURE_SNAKE_HEAD_R_
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_HEAD_L_ texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_HEAD_L_ # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_HEAD_L_
+        I1 = $TEXTURE_SNAKE_HEAD_L_
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_HEAD_D_ texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_HEAD_D_ # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_HEAD_D_
+        I1 = $TEXTURE_SNAKE_HEAD_D_
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_HEAD_U_ texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_HEAD_U_ # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_HEAD_U_
+        I1 = $TEXTURE_SNAKE_HEAD_U_
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_RR texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_RR # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_RR
+        I1 = $TEXTURE_SNAKE_BODY_RR
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_RL texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_RL # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_RL
+        I1 = $TEXTURE_SNAKE_BODY_RL
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_RD texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_RD # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_RD
+        I1 = $TEXTURE_SNAKE_BODY_RD
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_RU texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_RU # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_RU
+        I1 = $TEXTURE_SNAKE_BODY_RU
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_LR texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_LR # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_LR
+        I1 = $TEXTURE_SNAKE_BODY_LR
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_LL texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_LL # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_LL
+        I1 = $TEXTURE_SNAKE_BODY_LL
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_LD texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_LD # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_LD
+        I1 = $TEXTURE_SNAKE_BODY_LD
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_LU texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_LU # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_LU
+        I1 = $TEXTURE_SNAKE_BODY_LU
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_DR texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_DR # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_DR
+        I1 = $TEXTURE_SNAKE_BODY_DR
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_DL texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_DL # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_DL
+        I1 = $TEXTURE_SNAKE_BODY_DL
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_DD texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_DD # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_DD
+        I1 = $TEXTURE_SNAKE_BODY_DD
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_DU texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_DU # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_DU
+        I1 = $TEXTURE_SNAKE_BODY_DU
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_UR texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_UR # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_UR
+        I1 = $TEXTURE_SNAKE_BODY_UR
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_UL texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_UL # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_UL
+        I1 = $TEXTURE_SNAKE_BODY_UL
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_UD texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_UD # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_UD
+        I1 = $TEXTURE_SNAKE_BODY_UD
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_BODY_UU texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_BODY_UU # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_BODY_UU
+        I1 = $TEXTURE_SNAKE_BODY_UU
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_TAIL__R texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_TAIL__R # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_TAIL__R
+        I1 = $TEXTURE_SNAKE_TAIL__R
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_TAIL__L texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_TAIL__L # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_TAIL__L
+        I1 = $TEXTURE_SNAKE_TAIL__L
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_TAIL__D texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_TAIL__D # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_TAIL__D
+        I1 = $TEXTURE_SNAKE_TAIL__D
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+
+    # Send SNAKE_TAIL__U texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_SNAKE_TAIL__U # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_SNAKE_TAIL__U
+        I1 = $TEXTURE_SNAKE_TAIL__U
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
+}
+
+# Initialize random seed. Doesn't run on game reset.
+I1 = $PAGE_VARIABLES
+[$RANDOM_SEED] = $RANDOM_SEED_INIT
+
+@GAME_RESET
+
+# INIT TILEMAP
+{
+    # Init tilemap.
+    R1 = 0
+    {
+        I1 = $EMPTY_TILEMAP
+        R2 = [R1]
+        I1 = $PAGE_TILEMAP
+        [R1] = R2
+
+        R1 += 1
+        repeat if R1 != 0
+    }
+}
+
+I1 = $PAGE_VARIABLES
+[$SNAKE_HEAD_I] = 0x88
+[$SNAKE_TAIL_I] = 0x86
+[$SNAKE_HEAD_DIR] = $DIRECTION_R
+[$SNAKE_HEAD_DIR_I] = 1
+[$SNAKE_LENGTH] = 3
+[$SNAKE_GROWTH] = 0
+[$GAME_ACTIVE] = 0
+[$FOOD_TO_SPAWN] = $INITIAL_FOOD
+
+I1 = $PAGE_TILEMAP
+[136] = $TILE_SNAKE_HEAD_L_
+[135] = $TILE_SNAKE_BODY_LR
+[134] = $TILE_SNAKE_TAIL__R
+
+I1 = $PAGE_DIRECTION_LUT
+[$DIRECTION_R] = 1
+[$DIRECTION_L] = -1
+[$DIRECTION_D] = 16
+[$DIRECTION_U] = -16
+
+I1 = $PAGE_FOOD_LUT
+[0] = 1 # Normal apple.
+[1] = 4 # Golden apple.
+
+# UPLOAD TILEMAP
+{
+    write 0x02 # Send command id for texture upload.
+    I1 = $PAGE_TILEMAP
+    R1 = $PAGE_TILEMAP
+    {
+        R3 = [R1]
+        write R3
+
+        R1 += 1
+        repeat if R1 != 0
+    }
+}
+
+# ======================================================================================================================
+# MAIN LOOP
+# ======================================================================================================================
+{
+    # Handle input.
+    {
+        R1 = poll
+        exit if R1 == 0
+        R1 = read
+
+        # Handle mouse events.
+        R2 = R1 - 1
+        if R2 == 0
+        {
+            # Read X
+            {
+                R1 = poll
+                repeat if R1 == 0
+            }
+            R1 = read
+            R1 = shift right R1
+            R1 = shift right R1
+            R1 = shift right R1
+
+            # Read Y
+            {
+                R2 = poll
+                repeat if R2 == 0
+            }
+            R2 = read
+            R2 = shift left R2
+            R2 = R2 and 0xF0
+
+            # Calculate index
+            R1 = R1 or R2
+
+            I1 = $PAGE_TILEMAP
+            R2 = [R1]
+            jump @event_handled if R2 != 0
+
+            [R1] = $TILE_APPLE_GOLDEN
+            {
+                write 0x03
+                write R1
+                write $TILE_APPLE_GOLDEN
+            }
+
+            jump @event_handled
+        }
+
+        # Handle keyboard events.
+        R2 = R1 - 2
+        if R2 == 0
+        {
+            I1 = $PAGE_VARIABLES
+
+            # Mark input
+            [$GAME_ACTIVE] = 1
+
+            # Read keycode
+            {
+                R1 = poll
+                repeat if R1 == 0
+            }
+            R2 = read
+
+            # Handle escape key.
+            if R2 == 0
+            {
+                [$GAME_ACTIVE] = 0
+                jump @event_handled
+            }
+
+            R3 = R2 - 'W'
+            if R3 == 0
+            {
+                [$SNAKE_HEAD_DIR] = $DIRECTION_U
+                [$SNAKE_HEAD_DIR_I] = -16
+                jump @event_handled
+            }
+
+            R3 = R2 - 'S'
+            if R3 == 0
+            {
+                [$SNAKE_HEAD_DIR] = $DIRECTION_D
+                [$SNAKE_HEAD_DIR_I] = 16
+                jump @event_handled
+            }
+
+            R3 = R2 - 'A'
+            if R3 == 0
+            {
+                [$SNAKE_HEAD_DIR] = $DIRECTION_L
+                [$SNAKE_HEAD_DIR_I] = -1
+                jump @event_handled
+            }
+
+            R3 = R2 - 'D'
+            if R3 == 0
+            {
+                [$SNAKE_HEAD_DIR] = $DIRECTION_R
+                [$SNAKE_HEAD_DIR_I] = 1
+                jump @event_handled
+            }
+
+            jump @event_handled
+        }
+
+        @event_handled
+        repeat
+    }
+
+    I1 = $PAGE_VARIABLES
+    R1 = [$GAME_ACTIVE]
+    if R1 == 0
+    {
+        # Change seed during pause menu.
+        R2 = [$RANDOM_SEED]
+        R2 += 1
+        [$RANDOM_SEED] = R2
+    }
+    if R1 != 0
+    {
+        # Handle food spawn.
+        I1 = $PAGE_VARIABLES
+        R1 = [$FOOD_TO_SPAWN]
+        if R1 != 0
+        {
+            # Decrement timer.
+            R1 -= 1
+            [$FOOD_TO_SPAWN] = R1
+
+            # Generate Random variable in R1.
+            {
+                # Rotate time 3
+                R1 = [$RANDOM_SEED]
+
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
+
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
+
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
+
+                R1 += $RANDOM_MAGIC
+
+                [$RANDOM_SEED] = R1
+            }
+
+            # Spawn food.
+            I1 = $PAGE_TILEMAP
+            R2 = 0 # Position index.
+            {
+                R3 = [R2] # Current tile.
+                R2 += 1 if R3 != 0
+                repeat if R3 != 0
+                # Tile is clear
+
+                if R1 == 0
+                {
+                    [R2] = $TILE_APPLE
+                    write 0x03
+                    write R2
+                    write $TILE_APPLE
+                    jump @food_spawn_done
+                }
+
+                R2 += 1
+                R1 -= 1
+                repeat
+            }
+
+            @food_spawn_done
+            nop
+        }
+
+        # Update snake state.
+        {
+            # Load previous head state.
+            I1 = $PAGE_VARIABLES
+            R1 = [$SNAKE_HEAD_I]
+            R2 = [$SNAKE_HEAD_DIR]
+            R3 = [$SNAKE_HEAD_DIR_I]
+
+            # Perform collision checks.
+            {
+                I1 = $PAGE_TILEMAP
+                R4 = R1 + R3 # Calculate next position.
+                R4 = [R4]
+
+                # GAME OVER check
+                R5 = R4 and 0b10000000
+                if R5 != 0
+                {
+                    {
+                        R1 = poll
+                        repeat if R1 == 0
+                    }
+                    R1 = read
+
+                    # Handle mouse events.
+                    R2 = R1 - 1
+                    if R2 == 0
+                    {
+                        # Read X
+                        {
+                            R1 = poll
+                            repeat if R1 == 0
+                        }
+                        R1 = read
+
+                        # Read Y
+                        {
+                            R2 = poll
+                            repeat if R2 == 0
+                        }
+                        R2 = read
+
+                        jump @GAME_RESET
+                    }
+
+                    # Handle keyboard events.
+                    R2 = R1 - 2
+                    if R2 == 0
+                    {
+                        # Read keycode
+                        {
+                            R1 = poll
+                            repeat if R1 == 0
+                        }
+                        R1 = read
+                        jump @GAME_RESET
+                    }
+
+                    jump @GAME_RESET
+                }
+
+                # Food check
+                R5 = R4 and 0b01000000
+                if R5 != 0
+                {
+                    R5 = R4 and 0b00111111
+
+                    # Spawn a new apple if normal apple was eaten.
+                    I1 = $PAGE_VARIABLES
+                    R6 = [$FOOD_TO_SPAWN]
+                    R6 += 1 if R5 == 0
+                    [$FOOD_TO_SPAWN] = R6
+
+                    # Get food value.
+                    I1 = $PAGE_FOOD_LUT
+                    R5 = [R5]
+
+                    # Add food value to growth.
+                    I1 = $PAGE_VARIABLES
+                    R6 = [$SNAKE_GROWTH]
+                    R6 += R5
+                    [$SNAKE_GROWTH] = R6
+                }
+            }
+
+            # Update previous head tile state.
+            I1 = $PAGE_TILEMAP
+            R4 = [R1]
+            R4 = R4 or R2         # Add "to" in head direction.
+            R4 = R4 or 0b00110000 #
+            [R1] = R4
+            {
+                write 0x03
+                write R1
+                write R4
+            }
+
+            # Store new head state.
+            R1 += R3
+            I1 = $PAGE_VARIABLES
+            [$SNAKE_HEAD_I] = R1
+
+            # Update new head tile state.
+            I1 = $PAGE_TILEMAP
+            R5 = R2 xor 1
+            R5 = shift left R5
+            R5 = shift left R5
+            R4 = 0b10100000 or R5
+            [R1] = R4
+            {
+                write 0x03
+                write R1
+                write R4
+            }
+
+            # Update tail
+            I1 = $PAGE_VARIABLES
+            R8 = [$SNAKE_GROWTH]
+            if R8 == 0
+            {
+                # Load previous tail position.
+                I1 = $PAGE_VARIABLES
+                R1 = [$SNAKE_TAIL_I]
+
+                # Update previous tail state.
+                I1 = $PAGE_TILEMAP
+                R2 = [R1] # Previous tail state.
+                R2 = R2 and 0b00000011 # Tail "to" direction.
+                [R1] = $TILE_EMPTY
+                {
+                    write 0x03
+                    write R1
+                    write $TILE_EMPTY
+                }
+
+                # Find next tail position.
+                I1 = $PAGE_DIRECTION_LUT
+                R3 = [R2]
+                R1 += R3
+
+                # Update new tail position.
+                I1 = $PAGE_VARIABLES
+                [$SNAKE_TAIL_I] = R1
+
+                # Update new tail state.
+                I1 = $PAGE_TILEMAP
+                R3 = [R1] # New tail state.
+                R3 = R3 and 0b11010011
+                [R1] = R3
+                {
+                    write 0x03
+                    write R1
+                    write R3
+                }
+            }
+            if R8 != 0
+            {
+                R8 -= 1
+                [$SNAKE_GROWTH] = R8
+                R8 = [$SNAKE_LENGTH]
+                R8 += 1
+                [$SNAKE_LENGTH] =  R8
+            }
+        }
+    }
+
+    # SLEEP ~ 0.5s
+    {
+        R7 = $GAME_STEP_DELAY_L
+        R8 = $GAME_STEP_DELAY_H
+        {
+            R7 = R7 - 1
+            R8 = R8 - 0 with carry
+            repeat if R8 >= 0
+        }
+    }
+    repeat
+}
+
+
+# TILEMAP DEFINITIONS
+$EMPTY_TILEMAP := 0x8000
+!at 0x8000 {
+    0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x00; 0x80
+    0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80; 0x80
+}
+
+# TEXTURE DEFINITIONS
+$TILE_EMPTY := 0x00
+$TEXTURE_EMPTY := 0x9000
+!at 0x9000 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_APPLE := 0x40
+$TEXTURE_APPLE := 0x9020
+!at 0x9020 {
+    0xDD; 0xDD; 0x5D; 0xDD
+    0xBD; 0xD3; 0xD5; 0xDD
+    0xDD; 0x3B; 0x85; 0xD8
+    0x8D; 0x88; 0xE8; 0x88
+    0x84; 0x88; 0xE8; 0x8E
+    0x84; 0x88; 0x88; 0x8E
+    0x84; 0x88; 0x88; 0x88
+    0x4D; 0x88; 0x88; 0xD8
+}
+
+$TILE_APPLE_GOLDEN := 0x41
+$TEXTURE_APPLE_GOLDEN := 0x9040
+!at 0x9040 {
+    0xDD; 0xDD; 0x5D; 0xDD
+    0xBD; 0xD3; 0xD5; 0xDD
+    0xDD; 0x3B; 0xA5; 0xDA
+    0xAD; 0xAA; 0x7A; 0xAA
+    0xA9; 0xAA; 0x7A; 0xA7
+    0xA9; 0xAA; 0xAA; 0xA7
+    0xA9; 0xAA; 0xAA; 0xAA
+    0x9D; 0xAA; 0xAA; 0xDA
+}
+
+$TILE_WALL := 0x80
+$TEXTURE_WALL := 0x9060
+!at 0x9060 {
+    0x01; 0x11; 0x11; 0x11
+    0x01; 0x11; 0x11; 0x11
+    0x01; 0x11; 0x11; 0x11
+    0x00; 0x00; 0x00; 0x00
+    0x11; 0x11; 0x01; 0x11
+    0x11; 0x11; 0x01; 0x11
+    0x11; 0x11; 0x01; 0x11
+    0x00; 0x00; 0x00; 0x00
+}
+
+$TILE_SNAKE_TAIL__R := 0x90
+$TEXTURE_SNAKE_TAIL__R := 0x9080
+!at 0x9080 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xBD
+    0xDD; 0xBD; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0x33; 0xB3; 0xBB; 0xBB
+    0xDD; 0x3D; 0x33; 0xB3
+    0xDD; 0xDD; 0xDD; 0x3D
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_TAIL__L := 0x91
+$TEXTURE_SNAKE_TAIL__L := 0x90A0
+!at 0x90A0 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDB; 0xDD; 0xDD; 0xDD
+    0xBB; 0xBB; 0xDB; 0xDD
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0x3B; 0x33
+    0x3B; 0x33; 0xD3; 0xDD
+    0xD3; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_TAIL__D := 0x92
+$TEXTURE_SNAKE_TAIL__D := 0x90C0
+!at 0x90C0 {
+    0xDD; 0x3D; 0xDB; 0xDD
+    0xDD; 0x3D; 0xDB; 0xDD
+    0xDD; 0x3D; 0xDB; 0xDD
+    0xDD; 0xB3; 0xBB; 0xDD
+    0xDD; 0xB3; 0xBB; 0xDD
+    0xDD; 0xB3; 0xBB; 0xDD
+    0xDD; 0xB3; 0xBB; 0xDD
+    0x3D; 0xBB; 0xBB; 0xDB
+}
+
+$TILE_SNAKE_TAIL__U := 0x93
+$TEXTURE_SNAKE_TAIL__U := 0x90E0
+!at 0x90E0 {
+    0x3D; 0xBB; 0xBB; 0xDB
+    0xDD; 0xB3; 0xBB; 0xDD
+    0xDD; 0xB3; 0xBB; 0xDD
+    0xDD; 0xB3; 0xBB; 0xDD
+    0xDD; 0xB3; 0xBB; 0xDD
+    0xDD; 0x3D; 0xDB; 0xDD
+    0xDD; 0x3D; 0xDB; 0xDD
+    0xDD; 0x3D; 0xDB; 0xDD
+}
+
+$TILE_SNAKE_HEAD_R_ := 0xA0
+$TEXTURE_SNAKE_HEAD_R_ := 0x9100
+!at 0x9100 {
+    0xDD; 0xDD; 0xBB; 0xDB
+    0xDD; 0xBD; 0xBB; 0xBB
+    0xDD; 0xBB; 0x3A; 0xBB
+    0xEE; 0xB3; 0xBB; 0xBB
+    0xED; 0xB3; 0xBB; 0xBB
+    0xDE; 0xBB; 0x3A; 0xBB
+    0xDD; 0xBD; 0xBB; 0x3B
+    0xDD; 0xDD; 0x33; 0xD3
+}
+
+$TILE_SNAKE_HEAD_L_ := 0xA4
+$TEXTURE_SNAKE_HEAD_L_ := 0x9120
+!at 0x9120 {
+    0xBD; 0xBB; 0xDD; 0xDD
+    0xBB; 0xBB; 0xDB; 0xDD
+    0xBB; 0xA3; 0xBB; 0xED
+    0xBB; 0xBB; 0x3B; 0xDE
+    0xBB; 0xBB; 0x3B; 0xEE
+    0xBB; 0xA3; 0xBB; 0xDD
+    0xB3; 0xBB; 0xDB; 0xDD
+    0x3D; 0x33; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_HEAD_D_ := 0xA8
+$TEXTURE_SNAKE_HEAD_D_ := 0x9140
+!at 0x9140 {
+    0xDD; 0xDE; 0xDE; 0xDD
+    0xDD; 0xED; 0xDE; 0xDD
+    0xDD; 0x3B; 0xB3; 0xDD
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xB3; 0xBA; 0xAB; 0xBB
+    0xB3; 0xB3; 0x3B; 0xBB
+    0xB3; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0xDB
+}
+
+$TILE_SNAKE_HEAD_U_ := 0xAC
+$TEXTURE_SNAKE_HEAD_U_ := 0x9160
+!at 0x9160 {
+    0x3D; 0xBB; 0xBB; 0xDB
+    0xB3; 0xBB; 0xBB; 0xBB
+    0xB3; 0xB3; 0x3B; 0xBB
+    0xB3; 0xBA; 0xAB; 0xBB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xDD; 0x3B; 0xB3; 0xDD
+    0xDD; 0xED; 0xDE; 0xDD
+    0xDD; 0xED; 0xED; 0xDD
+}
+
+$TILE_SNAKE_BODY_RR := 0xB0
+$TEXTURE_SNAKE_BODY_RR := 0x9180
+!at 0x9180 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xBD; 0xBB; 0xBB; 0xCB
+    0xBD; 0xBB; 0xBB; 0xCB
+    0xBD; 0xBB; 0xBB; 0xCB
+    0xBD; 0xBB; 0xBB; 0x8B
+    0xBD; 0xBB; 0xBB; 0x8B
+    0xBD; 0xBB; 0xBB; 0x8B
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_BODY_RL := 0xB1
+$TEXTURE_SNAKE_BODY_RL := 0x91A0
+!at 0x91A0 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0x33; 0x33; 0x33; 0x33
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_BODY_RD := 0xB2
+$TEXTURE_SNAKE_BODY_RD := 0x91C0
+!at 0x91C0 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xBB; 0xBB
+    0xDD; 0xBB; 0xBB; 0xBB
+    0xDD; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0x3B
+    0x3D; 0xBB; 0xBB; 0xDB
+}
+
+$TILE_SNAKE_BODY_RU := 0xB3
+$TEXTURE_SNAKE_BODY_RU := 0x91E0
+!at 0x91E0 {
+    0xDD; 0xB3; 0xBB; 0xBB
+    0xDD; 0xB3; 0xBB; 0xBB
+    0xDD; 0xB3; 0xBB; 0xBB
+    0xDD; 0xB3; 0xBB; 0xBB
+    0xDD; 0x3D; 0xBB; 0xBB
+    0xDD; 0x3D; 0xB3; 0xBB
+    0xDD; 0xDD; 0x3D; 0x33
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_BODY_LR := 0xB4
+$TEXTURE_SNAKE_BODY_LR := 0x9200
+!at 0x9200 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0xBB; 0xBB; 0xBB; 0xBB
+    0x33; 0x33; 0x33; 0x33
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_BODY_LL := 0xB5
+$TEXTURE_SNAKE_BODY_LL := 0x9220
+!at 0x9220 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xB8; 0xBB; 0xBB; 0xDB
+    0xB8; 0xBB; 0xBB; 0xDB
+    0xB8; 0xBB; 0xBB; 0xDB
+    0xBC; 0xBB; 0xBB; 0xDB
+    0xBC; 0xBB; 0xBB; 0xDB
+    0xBC; 0xBB; 0xBB; 0xDB
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_BODY_LD := 0xB6
+$TEXTURE_SNAKE_BODY_LD := 0x9240
+!at 0x9240 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xBB; 0xBB; 0xDD; 0xDD
+    0xBB; 0xBB; 0xBB; 0xDD
+    0xBB; 0xBB; 0xBB; 0xDD
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xB3; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+}
+
+$TILE_SNAKE_BODY_LU := 0xB7
+$TEXTURE_SNAKE_BODY_LU := 0x9260
+!at 0x9260 {
+    0x3D; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDD
+    0xBB; 0xBB; 0x33; 0xDD
+    0x33; 0x33; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_BODY_DR := 0xB8
+$TEXTURE_SNAKE_BODY_DR := 0x9280
+!at 0x9280 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xDD; 0xDD; 0xBB; 0xBB
+    0xDD; 0xBB; 0xBB; 0xBB
+    0xDD; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0x3B
+    0x3D; 0xBB; 0xBB; 0xDB
+}
+
+$TILE_SNAKE_BODY_DL := 0xB9
+$TEXTURE_SNAKE_BODY_DL := 0x92A0
+!at 0x92A0 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xBB; 0xBB; 0xDD; 0xDD
+    0xBB; 0xBB; 0xBB; 0xDD
+    0xBB; 0xBB; 0xBB; 0xDD
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xB3; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+}
+
+$TILE_SNAKE_BODY_DD := 0xBA
+$TEXTURE_SNAKE_BODY_DD := 0x92C0
+!at 0x92C0 {
+    0xDD; 0xDD; 0xDD; 0xDD
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0x8D; 0x88; 0xCC; 0xDC
+}
+
+$TILE_SNAKE_BODY_DU := 0xBB
+$TEXTURE_SNAKE_BODY_DU := 0x92E0
+!at 0x92E0 {
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+}
+
+$TILE_SNAKE_BODY_UR := 0xBC
+$TEXTURE_SNAKE_BODY_UR := 0x9300
+!at 0x9300 {
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0xBB
+    0x3D; 0xBB; 0xBB; 0xBB
+    0xDD; 0xB3; 0xBB; 0xBB
+    0xDD; 0x33; 0xBB; 0xBB
+    0xDD; 0xDD; 0x33; 0x33
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_BODY_UL := 0xBD
+$TEXTURE_SNAKE_BODY_UL := 0x9320
+!at 0x9320 {
+    0x3D; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDB
+    0xBB; 0xBB; 0xBB; 0xDD
+    0xBB; 0xBB; 0x33; 0xDD
+    0x33; 0x33; 0xDD; 0xDD
+    0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_SNAKE_BODY_UD := 0xBE
+$TEXTURE_SNAKE_BODY_UD := 0x9340
+!at 0x9340 {
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+    0x3D; 0xBB; 0xBB; 0xDB
+}
+
+$TILE_SNAKE_BODY_UU := 0xBF
+$TEXTURE_SNAKE_BODY_UU := 0x9360
+!at 0x9360 {
+    0xCD; 0xCC; 0x88; 0xD8
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xBD; 0xBB; 0xBB; 0xDB
+    0xDD; 0xDD; 0xDD; 0xDD
+}

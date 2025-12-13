@@ -4,6 +4,7 @@ R1 = 0
 R2 = 32
 write 0x01 # Send command id for texture upload.
 write 255 # Send texture index.
+write 0 # Send texture config. (Use compressed format).
 {
     R3 = [R1]
     write R3
