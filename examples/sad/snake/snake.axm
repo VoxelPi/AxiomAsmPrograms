@@ -37,15 +37,20 @@ $SNAKE_HEAD_DIR_I := 0x0004
 $SNAKE_HEAD_DIR   := 0x0006
 $SNAKE_LENGTH     := 0x0007
 $SNAKE_GROWTH     := 0x0008
+$FOOD_TO_SPAWN    := 0x0020
 $GAME_ACTIVE      := 0x0080
+$RANDOM_SEED      := 0x00F0
 
 $DIRECTION_R := 0b00
 $DIRECTION_L := 0b01
 $DIRECTION_D := 0b10
 $DIRECTION_U := 0b11
 
-$FOOD_APPLE        := 1
-$FOOD_APPLE_GOLDEN := 4
+$INITIAL_FOOD := 1
+
+# For random number generator.
+$RANDOM_SEED_INIT := 0
+$RANDOM_MAGIC     := 0x5C
 
 # ======================================================================================================================
 # INIT
@@ -558,6 +563,10 @@ $FOOD_APPLE_GOLDEN := 4
     }
 }
 
+# Initialize random seed. Doesn't run on game reset.
+I1 = $PAGE_VARIABLES
+[$RANDOM_SEED] = $RANDOM_SEED_INIT
+
 @GAME_RESET
 
 # INIT TILEMAP
@@ -583,6 +592,7 @@ I1 = $PAGE_VARIABLES
 [$SNAKE_LENGTH] = 3
 [$SNAKE_GROWTH] = 0
 [$GAME_ACTIVE] = 0
+[$FOOD_TO_SPAWN] = $INITIAL_FOOD
 
 I1 = $PAGE_TILEMAP
 [136] = $TILE_SNAKE_HEAD_L_
@@ -725,124 +735,191 @@ I1 = $PAGE_FOOD_LUT
         repeat
     }
 
-    # Update snake state.
     I1 = $PAGE_VARIABLES
     R1 = [$GAME_ACTIVE]
     if R1 != 0
     {
-        # Load previous head state.
+        # Handle food spawn.
         I1 = $PAGE_VARIABLES
-        R1 = [$SNAKE_HEAD_I]
-        R2 = [$SNAKE_HEAD_DIR]
-        R3 = [$SNAKE_HEAD_DIR_I]
-
-        # Perform collision checks.
+        R1 = [$FOOD_TO_SPAWN]
+        if R1 != 0
         {
+            # Decrement timer.
+            R1 -= 1
+            [$FOOD_TO_SPAWN] = R1
+
+            # Generate Random variable in R1.
+            {
+                # Rotate time 3
+                R1 = [$RANDOM_SEED]
+
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
+
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
+
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
+
+                R1 += $RANDOM_MAGIC
+
+                [$RANDOM_SEED] = R1
+            }
+
+            # Spawn food.
             I1 = $PAGE_TILEMAP
-            R4 = R1 + R3 # Calculate next position.
-            R4 = [R4]
-
-            # GAME OVER check
-            R5 = R4 and 0b10000000
-            if R5 != 0
+            R2 = 0 # Position index.
             {
-                jump @GAME_RESET
+                R3 = [R2] # Current tile.
+                R2 += 1 if R3 != 0
+                repeat if R3 != 0
+                # Tile is clear
+
+                if R1 == 0
+                {
+                    [R2] = $TILE_APPLE
+                    write 0x03
+                    write R2
+                    write $TILE_APPLE
+                    jump @food_spawn_done
+                }
+
+                R2 += 1
+                R1 -= 1
+                repeat
             }
 
-            # Food check
-            R5 = R4 and 0b01000000
-            if R5 != 0
-            {
-                # Get food value.
-                I1 = $PAGE_FOOD_LUT
-                R5 = R4 and 0b00111111
-                R5 = [R5]
-
-                # Add food value to growth.
-                I1 = $PAGE_VARIABLES
-                R6 = [$SNAKE_GROWTH]
-                R6 += R5
-                [$SNAKE_GROWTH] = R6
-            }
+            @food_spawn_done
+            nop
         }
 
-        # Update previous head tile state.
-        I1 = $PAGE_TILEMAP
-        R4 = [R1]
-        R4 = R4 or R2         # Add "to" in head direction.
-        R4 = R4 or 0b00110000 #
-        [R1] = R4
+        # Update snake state.
         {
-            write 0x03
-            write R1
-            write R4
-        }
-
-        # Store new head state.
-        R1 += R3
-        I1 = $PAGE_VARIABLES
-        [$SNAKE_HEAD_I] = R1
-
-        # Update new head tile state.
-        I1 = $PAGE_TILEMAP
-        R5 = R2 xor 1
-        R5 = shift left R5
-        R5 = shift left R5
-        R4 = 0b10100000 or R5
-        [R1] = R4
-        {
-            write 0x03
-            write R1
-            write R4
-        }
-
-        # Update tail
-        I1 = $PAGE_VARIABLES
-        R8 = [$SNAKE_GROWTH]
-        if R8 == 0
-        {
-            # Load previous tail position.
+            # Load previous head state.
             I1 = $PAGE_VARIABLES
-            R1 = [$SNAKE_TAIL_I]
+            R1 = [$SNAKE_HEAD_I]
+            R2 = [$SNAKE_HEAD_DIR]
+            R3 = [$SNAKE_HEAD_DIR_I]
 
-            # Update previous tail state.
+            # Perform collision checks.
+            {
+                I1 = $PAGE_TILEMAP
+                R4 = R1 + R3 # Calculate next position.
+                R4 = [R4]
+
+                # GAME OVER check
+                R5 = R4 and 0b10000000
+                if R5 != 0
+                {
+                    jump @GAME_RESET
+                }
+
+                # Food check
+                R5 = R4 and 0b01000000
+                if R5 != 0
+                {
+                    R5 = R4 and 0b00111111
+
+                    # Spawn a new apple if normal apple was eaten.
+                    I1 = $PAGE_VARIABLES
+                    R6 = [$FOOD_TO_SPAWN]
+                    R6 += 1 if R5 == 0
+                    [$FOOD_TO_SPAWN] = R6
+
+                    # Get food value.
+                    I1 = $PAGE_FOOD_LUT
+                    R5 = [R5]
+
+                    # Add food value to growth.
+                    I1 = $PAGE_VARIABLES
+                    R6 = [$SNAKE_GROWTH]
+                    R6 += R5
+                    [$SNAKE_GROWTH] = R6
+                }
+            }
+
+            # Update previous head tile state.
             I1 = $PAGE_TILEMAP
-            R2 = [R1] # Previous tail state.
-            R2 = R2 and 0b00000011 # Tail "to" direction.
-            [R1] = $TILE_EMPTY
+            R4 = [R1]
+            R4 = R4 or R2         # Add "to" in head direction.
+            R4 = R4 or 0b00110000 #
+            [R1] = R4
             {
                 write 0x03
                 write R1
-                write $TILE_EMPTY
+                write R4
             }
 
-            # Find next tail position.
-            I1 = $PAGE_DIRECTION_LUT
-            R3 = [R2]
+            # Store new head state.
             R1 += R3
-
-            # Update new tail position.
             I1 = $PAGE_VARIABLES
-            [$SNAKE_TAIL_I] = R1
+            [$SNAKE_HEAD_I] = R1
 
-            # Update new tail state.
+            # Update new head tile state.
             I1 = $PAGE_TILEMAP
-            R3 = [R1] # New tail state.
-            R3 = R3 and 0b11010011
-            [R1] = R3
+            R5 = R2 xor 1
+            R5 = shift left R5
+            R5 = shift left R5
+            R4 = 0b10100000 or R5
+            [R1] = R4
             {
                 write 0x03
                 write R1
-                write R3
+                write R4
             }
-        }
-        if R8 != 0
-        {
-            R8 -= 1
-            [$SNAKE_GROWTH] = R8
-            R8 = [$SNAKE_LENGTH]
-            R8 += 1
-            [$SNAKE_LENGTH] =  R8
+
+            # Update tail
+            I1 = $PAGE_VARIABLES
+            R8 = [$SNAKE_GROWTH]
+            if R8 == 0
+            {
+                # Load previous tail position.
+                I1 = $PAGE_VARIABLES
+                R1 = [$SNAKE_TAIL_I]
+
+                # Update previous tail state.
+                I1 = $PAGE_TILEMAP
+                R2 = [R1] # Previous tail state.
+                R2 = R2 and 0b00000011 # Tail "to" direction.
+                [R1] = $TILE_EMPTY
+                {
+                    write 0x03
+                    write R1
+                    write $TILE_EMPTY
+                }
+
+                # Find next tail position.
+                I1 = $PAGE_DIRECTION_LUT
+                R3 = [R2]
+                R1 += R3
+
+                # Update new tail position.
+                I1 = $PAGE_VARIABLES
+                [$SNAKE_TAIL_I] = R1
+
+                # Update new tail state.
+                I1 = $PAGE_TILEMAP
+                R3 = [R1] # New tail state.
+                R3 = R3 and 0b11010011
+                [R1] = R3
+                {
+                    write 0x03
+                    write R1
+                    write R3
+                }
+            }
+            if R8 != 0
+            {
+                R8 -= 1
+                [$SNAKE_GROWTH] = R8
+                R8 = [$SNAKE_LENGTH]
+                R8 += 1
+                [$SNAKE_LENGTH] =  R8
+            }
         }
     }
 
