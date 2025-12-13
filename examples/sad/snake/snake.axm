@@ -628,6 +628,46 @@ I1 = $PAGE_FOOD_LUT
         exit if R1 == 0
         R1 = read
 
+        # Handle mouse events.
+        R2 = R1 - 1
+        if R2 == 0
+        {
+            # Read X
+            {
+                R1 = poll
+                repeat if R1 == 0
+            }
+            R1 = read
+            R1 = shift right R1
+            R1 = shift right R1
+            R1 = shift right R1
+
+            # Read Y
+            {
+                R2 = poll
+                repeat if R2 == 0
+            }
+            R2 = read
+            R2 = shift left R2
+            R2 = R2 and 0xF0
+
+            # Calculate index
+            R1 = R1 or R2
+
+            I1 = $PAGE_TILEMAP
+            R2 = [R1]
+            jump @event_handled if R2 != 0
+
+            [R1] = $TILE_APPLE_GOLDEN
+            {
+                write 0x03
+                write R1
+                write $TILE_APPLE_GOLDEN
+            }
+
+            jump @event_handled
+        }
+
         # Handle keyboard events.
         R2 = R1 - 2
         if R2 == 0
@@ -672,6 +712,8 @@ I1 = $PAGE_FOOD_LUT
                 [$SNAKE_HEAD_DIR_I] = 1
                 jump @event_handled
             }
+
+            jump @event_handled
         }
 
         @event_handled
@@ -786,11 +828,11 @@ I1 = $PAGE_FOOD_LUT
     }
     if R8 != 0
     {
-        R1 -= 1
-        [$SNAKE_GROWTH] = R1
-        R1 = [$SNAKE_LENGTH]
-        R1 += 1
-        [$SNAKE_LENGTH] =  R1
+        R8 -= 1
+        [$SNAKE_GROWTH] = R8
+        R8 = [$SNAKE_LENGTH]
+        R8 += 1
+        [$SNAKE_LENGTH] =  R8
     }
 
     # break
