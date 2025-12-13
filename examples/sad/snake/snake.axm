@@ -737,6 +737,13 @@ I1 = $PAGE_FOOD_LUT
 
     I1 = $PAGE_VARIABLES
     R1 = [$GAME_ACTIVE]
+    if R1 == 0
+    {
+        # Change seed during pause menu.
+        R2 = [$RANDOM_SEED]
+        R2 += 1
+        [$RANDOM_SEED] = R2
+    }
     if R1 != 0
     {
         # Handle food spawn.
