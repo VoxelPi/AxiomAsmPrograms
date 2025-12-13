@@ -1,12 +1,15 @@
 #  _____ _____ _____ _____ _____
-# |   __|   | |  _  |  |  |   __|  (+) Version 0.1.0
+# |   __|   | |  _  |  |  |   __|  (+) Version 0.1.1
 # |__   | | | |     |    -|   __|  (+) By Peter Smek
 # |_____|_|___|__|__|__|__|_____|
 #
 # VERSION HISTORY:
 #
 # - 0.1.0:
-#   Initial Release
+#   Initial Release.
+#
+# - 0.1.1:
+#   Improve performance of random food generation.
 #
 
 # Clear input buffer.
@@ -793,28 +796,19 @@ I1 = $PAGE_FOOD_LUT
                 [$RANDOM_SEED] = R1
             }
 
-            # Spawn food.
+            # Find free tile after the random position.
             I1 = $PAGE_TILEMAP
-            R2 = 0 # Position index.
             {
-                R3 = [R2] # Current tile.
-                R2 += 1 if R3 != 0
-                repeat if R3 != 0
-                # Tile is clear
-
-                if R1 == 0
-                {
-                    [R2] = $TILE_APPLE
-                    write 0x03
-                    write R2
-                    write $TILE_APPLE
-                    jump @food_spawn_done
-                }
-
-                R2 += 1
-                R1 -= 1
-                repeat
+                R2 = [R1] # Current tile.
+                R1 += 0xC5 if R2 != 0
+                repeat if R2 != 0
             }
+
+            [R1] = $TILE_APPLE
+            write 0x03
+            write R1
+            write $TILE_APPLE
+            jump @food_spawn_done
 
             @food_spawn_done
             nop
