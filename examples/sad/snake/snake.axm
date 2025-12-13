@@ -35,6 +35,7 @@ $SNAKE_TAIL_I     := 0x0002
 $SNAKE_HEAD_DIR_I := 0x0004
 $SNAKE_HEAD_DIR   := 0x0006
 $SNAKE_LENGTH     := 0x0007
+$SNAKE_GROWTH     := 0x0008
 
 $DIRECTION_R := 0b00
 $DIRECTION_L := 0b01
@@ -573,6 +574,7 @@ I1 = $PAGE_VARIABLES
 [$SNAKE_HEAD_DIR] = $DIRECTION_R
 [$SNAKE_HEAD_DIR_I] = 1
 [$SNAKE_LENGTH] = 3
+[$SNAKE_GROWTH] = 0
 
 I1 = $PAGE_TILEMAP
 [136] = $TILE_SNAKE_HEAD_L_
@@ -702,39 +704,53 @@ I1 = $PAGE_DIRECTION_LUT
         write R4
     }
 
-    # Load previous tail position.
+    # Update tail
     I1 = $PAGE_VARIABLES
-    R1 = [$SNAKE_TAIL_I]
-
-    # Update previous tail state.
-    I1 = $PAGE_TILEMAP
-    R2 = [R1] # Previous tail state.
-    R2 = R2 and 0b00000011 # Tail "to" direction.
-    [R1] = $TILE_EMPTY
+    R1 = [$SNAKE_GROWTH]
+    if R1 == 0
     {
-        write 0x03
-        write R1
-        write $TILE_EMPTY
+        # Load previous tail position.
+        I1 = $PAGE_VARIABLES
+        R1 = [$SNAKE_TAIL_I]
+
+        # Update previous tail state.
+        I1 = $PAGE_TILEMAP
+        R2 = [R1] # Previous tail state.
+        R2 = R2 and 0b00000011 # Tail "to" direction.
+        [R1] = $TILE_EMPTY
+        {
+            write 0x03
+            write R1
+            write $TILE_EMPTY
+        }
+
+        # Find next tail position.
+        I1 = $PAGE_DIRECTION_LUT
+        R3 = [R2]
+        R1 += R3
+
+        # Update new tail position.
+        I1 = $PAGE_VARIABLES
+        [$SNAKE_TAIL_I] = R1
+
+        # Update new tail state.
+        I1 = $PAGE_TILEMAP
+        R3 = [R1] # New tail state.
+        R3 = R3 and 0b11010011
+        [R1] = R3
+        {
+            write 0x03
+            write R1
+            write R3
+        }
     }
-
-    # Find next tail position.
-    I1 = $PAGE_DIRECTION_LUT
-    R3 = [R2]
-    R1 += R3
-
-    # Update new tail position.
-    I1 = $PAGE_VARIABLES
-    [$SNAKE_TAIL_I] = R1
-
-    # Update new tail state.
-    I1 = $PAGE_TILEMAP
-    R3 = [R1] # New tail state.
-    R3 = R3 and 0b11010011
-    [R1] = R3
+    if R1 != 0
     {
-        write 0x03
-        write R1
-        write R3
+        R1 -= 1
+        [$SNAKE_GROWTH] = R1
+        R1 = [$SNAKE_LENGTH]
+        R1 += 1
+        [$SNAKE_LENGTH] =  R1
     }
 
     # break
