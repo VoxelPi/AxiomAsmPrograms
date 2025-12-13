@@ -48,6 +48,10 @@ $DIRECTION_U := 0b11
 
 $INITIAL_FOOD := 1
 
+# The delay between game steps.
+$GAME_STEP_DELAY_H := 0x02
+$GAME_STEP_DELAY_L := 0x00
+
 # For random number generator.
 $RANDOM_SEED_INIT := 0
 $RANDOM_MAGIC     := 0x5C
@@ -972,8 +976,8 @@ I1 = $PAGE_FOOD_LUT
 
     # SLEEP ~ 0.5s
     {
-        R7 = 0x00
-        R8 = 0x02
+        R7 = $GAME_STEP_DELAY_L
+        R8 = $GAME_STEP_DELAY_H
         {
             R7 = R7 - 1
             R8 = R8 - 0 with carry
