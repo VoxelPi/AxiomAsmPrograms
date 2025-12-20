@@ -56,6 +56,7 @@ $SNAKE_HEAD_DIR   := 0x0006
 $SNAKE_LENGTH     := 0x0007
 $SNAKE_GROWTH     := 0x0008
 $FOOD_TO_SPAWN    := 0x0020
+$HAZARD_TO_SPAWN  := 0x0021
 $GAME_ACTIVE      := 0x0080
 $RANDOM_SEED      := 0x00F0
 
@@ -65,7 +66,8 @@ $DIRECTION_D := 0b10
 $DIRECTION_U := 0b11
 
 $INITIAL_FOOD := 1
-$SPAWN_HAZARDS := 1 # If hazards should spawn.
+$INITIAL_HAZARD := 4 # Number of hazards to spawn on game start.
+$HAZARD_PER_FOOD := 4 # Number of hzards to spawn per eaten apple.
 
 # The delay between game steps.
 $GAME_STEP_DELAY_H := 0x02
@@ -634,6 +636,7 @@ I1 = $PAGE_VARIABLES
 [$SNAKE_GROWTH] = 0
 [$GAME_ACTIVE] = 0
 [$FOOD_TO_SPAWN] = $INITIAL_FOOD
+[$HAZARD_TO_SPAWN] = $INITIAL_HAZARD
 
 I1 = $PAGE_TILEMAP
 [136] = $TILE_SNAKE_HEAD_L_
@@ -831,47 +834,52 @@ I1 = $PAGE_FOOD_LUT
             write 0x03
             write R1
             write $TILE_APPLE
+        }
 
-            # Hazard spawning
-            # If enabled, each time the snake eats an apple, a hazard is spawned.
-            R1 = $SPAWN_HAZARDS
-            if R1 != 0
+        # Handle hazard spawn.
+        I1 = $PAGE_VARIABLES
+        R1 = [$HAZARD_TO_SPAWN]
+        if R1 != 0
+        {
+            # Decrement spawn counter.
+            R1 -= 1
+            [$HAZARD_TO_SPAWN] = R1
+
+            # Generate Random variable in R1.
             {
-                # Generate Random variable in R1.
-                {
-                    # Rotate time 3
-                    R1 = [$RANDOM_SEED]
+                # Rotate time 3
+                R1 = [$RANDOM_SEED]
 
-                    R1 = shift right R1
-                    R2 = rotate right 0
-                    R1 = R1 or R2
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
 
-                    R1 = shift right R1
-                    R2 = rotate right 0
-                    R1 = R1 or R2
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
 
-                    R1 = shift right R1
-                    R2 = rotate right 0
-                    R1 = R1 or R2
+                R1 = shift right R1
+                R2 = rotate right 0
+                R1 = R1 or R2
 
-                    R1 += $RANDOM_MAGIC
+                R1 += $RANDOM_MAGIC
 
-                    [$RANDOM_SEED] = R1
-                }
-
-                # Find free tile after the random position.
-                I1 = $PAGE_TILEMAP
-                {
-                    R2 = [R1] # Current tile.
-                    R1 += 0xC5 if R2 != 0
-                    repeat if R2 != 0
-                }
-
-                [R1] = $TILE_HAZARD
-                write 0x03
-                write R1
-                write $TILE_HAZARD
+                [$RANDOM_SEED] = R1
             }
+
+            # Find free tile after the random position.
+            I1 = $PAGE_TILEMAP
+            {
+                R2 = [R1] # Current tile.
+                R1 += 0xC5 if R2 != 0
+                repeat if R2 != 0
+            }
+
+            # Send tile update for new apple.
+            [R1] = $TILE_HAZARD
+            write 0x03
+            write R1
+            write $TILE_HAZARD
         }
 
         # Update snake state.
@@ -946,6 +954,11 @@ I1 = $PAGE_FOOD_LUT
                     R6 = [$FOOD_TO_SPAWN]
                     R6 += 1 if R5 == 0
                     [$FOOD_TO_SPAWN] = R6
+
+                    # Spawn a new hazard if normal apple was eaten
+                    R6 = [$HAZARD_TO_SPAWN]
+                    R6 += $HAZARD_PER_FOOD if R5 == 0
+                    [$HAZARD_TO_SPAWN] = R6
 
                     # Get food value.
                     I1 = $PAGE_FOOD_LUT
