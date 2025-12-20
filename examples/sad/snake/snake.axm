@@ -65,9 +65,9 @@ $DIRECTION_L := 0b01
 $DIRECTION_D := 0b10
 $DIRECTION_U := 0b11
 
-$INITIAL_FOOD := 1
-$INITIAL_HAZARD := 4 # Number of hazards to spawn on game start.
-$HAZARD_PER_FOOD := 4 # Number of hzards to spawn per eaten apple.
+$INITIAL_FOOD    := 1 # Number of apples to spawn on game start.
+$INITIAL_HAZARD  := 0 # Number of hazards to spawn on game start.
+$HAZARD_PER_FOOD := 1 # Number of hazards to spawn per eaten apple.
 
 # The delay between game steps.
 $GAME_STEP_DELAY_H := 0x02
@@ -791,10 +791,13 @@ I1 = $PAGE_FOOD_LUT
     if R1 != 0
     {
         # Handle food spawn.
-        I1 = $PAGE_VARIABLES
-        R1 = [$FOOD_TO_SPAWN]
         if R1 != 0
         {
+            # Check if food should be spawned.
+            I1 = $PAGE_VARIABLES
+            R1 = [$FOOD_TO_SPAWN]
+            exit if R1 == 0
+
             # Decrement spawn counter.
             R1 -= 1
             [$FOOD_TO_SPAWN] = R1
@@ -834,13 +837,17 @@ I1 = $PAGE_FOOD_LUT
             write 0x03
             write R1
             write $TILE_APPLE
+
+            repeat
         }
 
         # Handle hazard spawn.
-        I1 = $PAGE_VARIABLES
-        R1 = [$HAZARD_TO_SPAWN]
-        if R1 != 0
         {
+            # Check if hazard should be spawned.
+            I1 = $PAGE_VARIABLES
+            R1 = [$HAZARD_TO_SPAWN]
+            exit if R1 == 0
+
             # Decrement spawn counter.
             R1 -= 1
             [$HAZARD_TO_SPAWN] = R1
@@ -880,6 +887,8 @@ I1 = $PAGE_FOOD_LUT
             write 0x03
             write R1
             write $TILE_HAZARD
+
+            repeat
         }
 
         # Update snake state.
