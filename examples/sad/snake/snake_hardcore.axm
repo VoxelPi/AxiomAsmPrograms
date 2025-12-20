@@ -1,21 +1,14 @@
 #  _____ _____ _____ _____ _____
-# |   __|   | |  _  |  |  |   __|  (+) Version 0.2.1
-# |__   | | | |     |    -|   __|  (+) By Peter Smek, Oliver Seiter
-# |_____|_|___|__|__|__|__|_____|
+# |   __|   | |  _  |  |  |   __|  (+) Version 0.1.0
+# |__   | | | |     |    -|   __|  (+) By Peter Smek
+# |_____|_|___|__|__|__|__|_____|  (+) Mod by Oliver Seiter
 #
 # VERSION HISTORY:
 #
 # - 0.1.0:
-#   Initial Release.
+#   Initial Release
 #
-# - 0.1.1:
-#   Improve performance of random food generation.
-#
-# - 0.2.0:
-#   Added hazards. (Oliver Seiter)
-#
-# - 0.2.1:
-#   Improved food & hazard spawning.
+# Mod version 1.0
 #
 
 # Clear input buffer.
@@ -59,7 +52,6 @@ $SNAKE_HEAD_DIR   := 0x0006
 $SNAKE_LENGTH     := 0x0007
 $SNAKE_GROWTH     := 0x0008
 $FOOD_TO_SPAWN    := 0x0020
-$HAZARD_TO_SPAWN  := 0x0021
 $GAME_ACTIVE      := 0x0080
 $RANDOM_SEED      := 0x00F0
 
@@ -68,9 +60,7 @@ $DIRECTION_L := 0b01
 $DIRECTION_D := 0b10
 $DIRECTION_U := 0b11
 
-$INITIAL_FOOD    := 1 # Number of apples to spawn on game start.
-$INITIAL_HAZARD  := 0 # Number of hazards to spawn on game start.
-$HAZARD_PER_FOOD := 1 # Number of hazards to spawn per eaten apple.
+$INITIAL_FOOD := 1
 
 # The delay between game steps.
 $GAME_STEP_DELAY_H := 0x02
@@ -148,24 +138,6 @@ $RANDOM_MAGIC     := 0x5C
         R2 = 32 # Counter
         R1 = $TEXTURE_WALL
         I1 = $TEXTURE_WALL
-        {
-            R3 = [R1]
-            write R3
-
-            R1 += 1
-            R2 -= 1
-            repeat if R2 > 0
-        }
-    }
-
-    # Send HAZARD texture
-    {
-        write 0x01 # Send command id for texture upload.
-        write $TILE_HAZARD # Send texture index.
-        write 0x00 # Send texture config. (Use 4bit format).
-        R2 = 32 # Counter
-        R1 = $TEXTURE_HAZARD
-        I1 = $TEXTURE_HAZARD
         {
             R3 = [R1]
             write R3
@@ -607,6 +579,24 @@ $RANDOM_MAGIC     := 0x5C
             repeat if R2 > 0
         }
     }
+
+    # Send HAZARD texture
+    {
+        write 0x01 # Send command id for texture upload.
+        write $TILE_HAZARD # Send texture index.
+        write 0x00 # Send texture config. (Use 4bit format).
+        R2 = 32 # Counter
+        R1 = $TEXTURE_HAZARD
+        I1 = $TEXTURE_HAZARD
+        {
+            R3 = [R1]
+            write R3
+
+            R1 += 1
+            R2 -= 1
+            repeat if R2 > 0
+        }
+    }
 }
 
 # Initialize random seed. Doesn't run on game reset.
@@ -639,7 +629,6 @@ I1 = $PAGE_VARIABLES
 [$SNAKE_GROWTH] = 0
 [$GAME_ACTIVE] = 0
 [$FOOD_TO_SPAWN] = $INITIAL_FOOD
-[$HAZARD_TO_SPAWN] = $INITIAL_HAZARD
 
 I1 = $PAGE_TILEMAP
 [136] = $TILE_SNAKE_HEAD_L_
@@ -794,14 +783,11 @@ I1 = $PAGE_FOOD_LUT
     if R1 != 0
     {
         # Handle food spawn.
+        I1 = $PAGE_VARIABLES
+        R1 = [$FOOD_TO_SPAWN]
         if R1 != 0
         {
-            # Check if food should be spawned.
-            I1 = $PAGE_VARIABLES
-            R1 = [$FOOD_TO_SPAWN]
-            exit if R1 == 0
-
-            # Decrement spawn counter.
+            # Decrement timer.
             R1 -= 1
             [$FOOD_TO_SPAWN] = R1
 
@@ -827,33 +813,30 @@ I1 = $PAGE_FOOD_LUT
                 [$RANDOM_SEED] = R1
             }
 
-            # Find free tile after the random position.
+            # Spawn food.
             I1 = $PAGE_TILEMAP
+            R2 = 0 # Position index.
             {
-                R2 = [R1] # Current tile.
-                R1 += 0xC5 if R2 != 0
-                repeat if R2 != 0
+                R3 = [R2] # Current tile.
+                R2 += 1 if R3 != 0
+                repeat if R3 != 0
+                # Tile is clear
+
+                if R1 == 0
+                {
+                    [R2] = $TILE_APPLE
+                    write 0x03
+                    write R2
+                    write $TILE_APPLE
+                    jump @food_spawn_done
+                }
+
+                R2 += 1
+                R1 -= 1
+                repeat
             }
 
-            # Send tile update for new apple.
-            [R1] = $TILE_APPLE
-            write 0x03
-            write R1
-            write $TILE_APPLE
-
-            repeat
-        }
-
-        # Handle hazard spawn.
-        {
-            # Check if hazard should be spawned.
-            I1 = $PAGE_VARIABLES
-            R1 = [$HAZARD_TO_SPAWN]
-            exit if R1 == 0
-
-            # Decrement spawn counter.
-            R1 -= 1
-            [$HAZARD_TO_SPAWN] = R1
+            @food_spawn_done
 
             # Generate Random variable in R1.
             {
@@ -877,21 +860,31 @@ I1 = $PAGE_FOOD_LUT
                 [$RANDOM_SEED] = R1
             }
 
-            # Find free tile after the random position.
+            # Spawn food.
             I1 = $PAGE_TILEMAP
+            R2 = 0 # Position index.
             {
-                R2 = [R1] # Current tile.
-                R1 += 0xC5 if R2 != 0
-                repeat if R2 != 0
+                R3 = [R2] # Current tile.
+                R2 += 1 if R3 != 0
+                repeat if R3 != 0
+                # Tile is clear
+
+                if R1 == 0
+                {
+                    [R2] = $TILE_HAZARD
+                    write 0x03
+                    write R2
+                    write $TILE_HAZARD
+                    jump @hazard_spawn_done
+                }
+
+                R2 += 1
+                R1 -= 1
+                repeat
             }
 
-            # Send tile update for new apple.
-            [R1] = $TILE_HAZARD
-            write 0x03
-            write R1
-            write $TILE_HAZARD
-
-            repeat
+            @hazard_spawn_done
+            nop
         }
 
         # Update snake state.
@@ -966,11 +959,6 @@ I1 = $PAGE_FOOD_LUT
                     R6 = [$FOOD_TO_SPAWN]
                     R6 += 1 if R5 == 0
                     [$FOOD_TO_SPAWN] = R6
-
-                    # Spawn a new hazard if normal apple was eaten
-                    R6 = [$HAZARD_TO_SPAWN]
-                    R6 += $HAZARD_PER_FOOD if R5 == 0
-                    [$HAZARD_TO_SPAWN] = R6
 
                     # Get food value.
                     I1 = $PAGE_FOOD_LUT
@@ -1153,22 +1141,9 @@ $TEXTURE_WALL := 0x9060
     0x00; 0x00; 0x00; 0x00
 }
 
-$TILE_HAZARD := 0x81
-$TEXTURE_HAZARD := 0x9080
-!at 0x9080 {
-    0xDD; 0x7D; 0xD7; 0xDD
-    0xFD; 0x77; 0x77; 0xD7
-    0x7F; 0x77; 0x77; 0x77
-    0x5F; 0x75; 0x57; 0x75
-    0x5F; 0x75; 0x57; 0x75
-    0xFD; 0x77; 0x77; 0xD7
-    0xDD; 0x75; 0x75; 0xDD
-    0xDD; 0x5F; 0x57; 0xDD
-}
-
 $TILE_SNAKE_TAIL__R := 0x90
-$TEXTURE_SNAKE_TAIL__R := 0x90A0
-!at 0x90A0 {
+$TEXTURE_SNAKE_TAIL__R := 0x9080
+!at 0x9080 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xDD; 0xDD; 0xDD; 0xBD
     0xDD; 0xBD; 0xBB; 0xBB
@@ -1180,8 +1155,8 @@ $TEXTURE_SNAKE_TAIL__R := 0x90A0
 }
 
 $TILE_SNAKE_TAIL__L := 0x91
-$TEXTURE_SNAKE_TAIL__L := 0x90C0
-!at 0x90C0 {
+$TEXTURE_SNAKE_TAIL__L := 0x90A0
+!at 0x90A0 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xDB; 0xDD; 0xDD; 0xDD
     0xBB; 0xBB; 0xDB; 0xDD
@@ -1193,8 +1168,8 @@ $TEXTURE_SNAKE_TAIL__L := 0x90C0
 }
 
 $TILE_SNAKE_TAIL__D := 0x92
-$TEXTURE_SNAKE_TAIL__D := 0x90E0
-!at 0x90E0 {
+$TEXTURE_SNAKE_TAIL__D := 0x90C0
+!at 0x90C0 {
     0xDD; 0x3D; 0xDB; 0xDD
     0xDD; 0x3D; 0xDB; 0xDD
     0xDD; 0x3D; 0xDB; 0xDD
@@ -1206,8 +1181,8 @@ $TEXTURE_SNAKE_TAIL__D := 0x90E0
 }
 
 $TILE_SNAKE_TAIL__U := 0x93
-$TEXTURE_SNAKE_TAIL__U := 0x9100
-!at 0x9100 {
+$TEXTURE_SNAKE_TAIL__U := 0x90E0
+!at 0x90E0 {
     0x3D; 0xBB; 0xBB; 0xDB
     0xDD; 0xB3; 0xBB; 0xDD
     0xDD; 0xB3; 0xBB; 0xDD
@@ -1219,8 +1194,8 @@ $TEXTURE_SNAKE_TAIL__U := 0x9100
 }
 
 $TILE_SNAKE_HEAD_R_ := 0xA0
-$TEXTURE_SNAKE_HEAD_R_ := 0x9120
-!at 0x9120 {
+$TEXTURE_SNAKE_HEAD_R_ := 0x9100
+!at 0x9100 {
     0xDD; 0xDD; 0xBB; 0xDB
     0xDD; 0xBD; 0xBB; 0xBB
     0xDD; 0xBB; 0x3A; 0xBB
@@ -1232,8 +1207,8 @@ $TEXTURE_SNAKE_HEAD_R_ := 0x9120
 }
 
 $TILE_SNAKE_HEAD_L_ := 0xA4
-$TEXTURE_SNAKE_HEAD_L_ := 0x9140
-!at 0x9140 {
+$TEXTURE_SNAKE_HEAD_L_ := 0x9120
+!at 0x9120 {
     0xBD; 0xBB; 0xDD; 0xDD
     0xBB; 0xBB; 0xDB; 0xDD
     0xBB; 0xA3; 0xBB; 0xED
@@ -1245,8 +1220,8 @@ $TEXTURE_SNAKE_HEAD_L_ := 0x9140
 }
 
 $TILE_SNAKE_HEAD_D_ := 0xA8
-$TEXTURE_SNAKE_HEAD_D_ := 0x9160
-!at 0x9160 {
+$TEXTURE_SNAKE_HEAD_D_ := 0x9140
+!at 0x9140 {
     0xDD; 0xDE; 0xDE; 0xDD
     0xDD; 0xED; 0xDE; 0xDD
     0xDD; 0x3B; 0xB3; 0xDD
@@ -1258,8 +1233,8 @@ $TEXTURE_SNAKE_HEAD_D_ := 0x9160
 }
 
 $TILE_SNAKE_HEAD_U_ := 0xAC
-$TEXTURE_SNAKE_HEAD_U_ := 0x9180
-!at 0x9180 {
+$TEXTURE_SNAKE_HEAD_U_ := 0x9160
+!at 0x9160 {
     0x3D; 0xBB; 0xBB; 0xDB
     0xB3; 0xBB; 0xBB; 0xBB
     0xB3; 0xB3; 0x3B; 0xBB
@@ -1271,8 +1246,8 @@ $TEXTURE_SNAKE_HEAD_U_ := 0x9180
 }
 
 $TILE_SNAKE_BODY_RR := 0xB0
-$TEXTURE_SNAKE_BODY_RR := 0x91A0
-!at 0x91A0 {
+$TEXTURE_SNAKE_BODY_RR := 0x9180
+!at 0x9180 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xBD; 0xBB; 0xBB; 0xCB
     0xBD; 0xBB; 0xBB; 0xCB
@@ -1284,8 +1259,8 @@ $TEXTURE_SNAKE_BODY_RR := 0x91A0
 }
 
 $TILE_SNAKE_BODY_RL := 0xB1
-$TEXTURE_SNAKE_BODY_RL := 0x91C0
-!at 0x91C0 {
+$TEXTURE_SNAKE_BODY_RL := 0x91A0
+!at 0x91A0 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xBB; 0xBB; 0xBB; 0xBB
     0xBB; 0xBB; 0xBB; 0xBB
@@ -1297,8 +1272,8 @@ $TEXTURE_SNAKE_BODY_RL := 0x91C0
 }
 
 $TILE_SNAKE_BODY_RD := 0xB2
-$TEXTURE_SNAKE_BODY_RD := 0x91E0
-!at 0x91E0 {
+$TEXTURE_SNAKE_BODY_RD := 0x91C0
+!at 0x91C0 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xDD; 0xDD; 0xBB; 0xBB
     0xDD; 0xBB; 0xBB; 0xBB
@@ -1310,8 +1285,8 @@ $TEXTURE_SNAKE_BODY_RD := 0x91E0
 }
 
 $TILE_SNAKE_BODY_RU := 0xB3
-$TEXTURE_SNAKE_BODY_RU := 0x9200
-!at 0x9200 {
+$TEXTURE_SNAKE_BODY_RU := 0x91E0
+!at 0x91E0 {
     0xDD; 0xB3; 0xBB; 0xBB
     0xDD; 0xB3; 0xBB; 0xBB
     0xDD; 0xB3; 0xBB; 0xBB
@@ -1323,8 +1298,8 @@ $TEXTURE_SNAKE_BODY_RU := 0x9200
 }
 
 $TILE_SNAKE_BODY_LR := 0xB4
-$TEXTURE_SNAKE_BODY_LR := 0x9220
-!at 0x9220 {
+$TEXTURE_SNAKE_BODY_LR := 0x9200
+!at 0x9200 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xBB; 0xBB; 0xBB; 0xBB
     0xBB; 0xBB; 0xBB; 0xBB
@@ -1336,8 +1311,8 @@ $TEXTURE_SNAKE_BODY_LR := 0x9220
 }
 
 $TILE_SNAKE_BODY_LL := 0xB5
-$TEXTURE_SNAKE_BODY_LL := 0x9240
-!at 0x9240 {
+$TEXTURE_SNAKE_BODY_LL := 0x9220
+!at 0x9220 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xB8; 0xBB; 0xBB; 0xDB
     0xB8; 0xBB; 0xBB; 0xDB
@@ -1349,8 +1324,8 @@ $TEXTURE_SNAKE_BODY_LL := 0x9240
 }
 
 $TILE_SNAKE_BODY_LD := 0xB6
-$TEXTURE_SNAKE_BODY_LD := 0x9260
-!at 0x9260 {
+$TEXTURE_SNAKE_BODY_LD := 0x9240
+!at 0x9240 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xBB; 0xBB; 0xDD; 0xDD
     0xBB; 0xBB; 0xBB; 0xDD
@@ -1362,8 +1337,8 @@ $TEXTURE_SNAKE_BODY_LD := 0x9260
 }
 
 $TILE_SNAKE_BODY_LU := 0xB7
-$TEXTURE_SNAKE_BODY_LU := 0x9280
-!at 0x9280 {
+$TEXTURE_SNAKE_BODY_LU := 0x9260
+!at 0x9260 {
     0x3D; 0xBB; 0xBB; 0xDB
     0xBB; 0xBB; 0xBB; 0xDB
     0xBB; 0xBB; 0xBB; 0xDB
@@ -1375,8 +1350,8 @@ $TEXTURE_SNAKE_BODY_LU := 0x9280
 }
 
 $TILE_SNAKE_BODY_DR := 0xB8
-$TEXTURE_SNAKE_BODY_DR := 0x92A0
-!at 0x92A0 {
+$TEXTURE_SNAKE_BODY_DR := 0x9280
+!at 0x9280 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xDD; 0xDD; 0xBB; 0xBB
     0xDD; 0xBB; 0xBB; 0xBB
@@ -1388,8 +1363,8 @@ $TEXTURE_SNAKE_BODY_DR := 0x92A0
 }
 
 $TILE_SNAKE_BODY_DL := 0xB9
-$TEXTURE_SNAKE_BODY_DL := 0x92C0
-!at 0x92C0 {
+$TEXTURE_SNAKE_BODY_DL := 0x92A0
+!at 0x92A0 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xBB; 0xBB; 0xDD; 0xDD
     0xBB; 0xBB; 0xBB; 0xDD
@@ -1401,8 +1376,8 @@ $TEXTURE_SNAKE_BODY_DL := 0x92C0
 }
 
 $TILE_SNAKE_BODY_DD := 0xBA
-$TEXTURE_SNAKE_BODY_DD := 0x92E0
-!at 0x92E0 {
+$TEXTURE_SNAKE_BODY_DD := 0x92C0
+!at 0x92C0 {
     0xDD; 0xDD; 0xDD; 0xDD
     0xBD; 0xBB; 0xBB; 0xDB
     0xBD; 0xBB; 0xBB; 0xDB
@@ -1414,8 +1389,8 @@ $TEXTURE_SNAKE_BODY_DD := 0x92E0
 }
 
 $TILE_SNAKE_BODY_DU := 0xBB
-$TEXTURE_SNAKE_BODY_DU := 0x9300
-!at 0x9300 {
+$TEXTURE_SNAKE_BODY_DU := 0x92E0
+!at 0x92E0 {
     0x3D; 0xBB; 0xBB; 0xDB
     0x3D; 0xBB; 0xBB; 0xDB
     0x3D; 0xBB; 0xBB; 0xDB
@@ -1427,8 +1402,8 @@ $TEXTURE_SNAKE_BODY_DU := 0x9300
 }
 
 $TILE_SNAKE_BODY_UR := 0xBC
-$TEXTURE_SNAKE_BODY_UR := 0x9320
-!at 0x9320 {
+$TEXTURE_SNAKE_BODY_UR := 0x9300
+!at 0x9300 {
     0x3D; 0xBB; 0xBB; 0xDB
     0x3D; 0xBB; 0xBB; 0xBB
     0x3D; 0xBB; 0xBB; 0xBB
@@ -1440,8 +1415,8 @@ $TEXTURE_SNAKE_BODY_UR := 0x9320
 }
 
 $TILE_SNAKE_BODY_UL := 0xBD
-$TEXTURE_SNAKE_BODY_UL := 0x9340
-!at 0x9340 {
+$TEXTURE_SNAKE_BODY_UL := 0x9320
+!at 0x9320 {
     0x3D; 0xBB; 0xBB; 0xDB
     0xBB; 0xBB; 0xBB; 0xDB
     0xBB; 0xBB; 0xBB; 0xDB
@@ -1453,8 +1428,8 @@ $TEXTURE_SNAKE_BODY_UL := 0x9340
 }
 
 $TILE_SNAKE_BODY_UD := 0xBE
-$TEXTURE_SNAKE_BODY_UD := 0x9360
-!at 0x9360 {
+$TEXTURE_SNAKE_BODY_UD := 0x9340
+!at 0x9340 {
     0x3D; 0xBB; 0xBB; 0xDB
     0x3D; 0xBB; 0xBB; 0xDB
     0x3D; 0xBB; 0xBB; 0xDB
@@ -1466,8 +1441,8 @@ $TEXTURE_SNAKE_BODY_UD := 0x9360
 }
 
 $TILE_SNAKE_BODY_UU := 0xBF
-$TEXTURE_SNAKE_BODY_UU := 0x9380
-!at 0x9380 {
+$TEXTURE_SNAKE_BODY_UU := 0x9360
+!at 0x9360 {
     0xCD; 0xCC; 0x88; 0xD8
     0xBD; 0xBB; 0xBB; 0xDB
     0xBD; 0xBB; 0xBB; 0xDB
@@ -1476,4 +1451,17 @@ $TEXTURE_SNAKE_BODY_UU := 0x9380
     0xBD; 0xBB; 0xBB; 0xDB
     0xBD; 0xBB; 0xBB; 0xDB
     0xDD; 0xDD; 0xDD; 0xDD
+}
+
+$TILE_HAZARD := 0x81
+$TEXTURE_HAZARD := 0x9380
+!at 0x9380 {
+    0xDD; 0xDD; 0x1D; 0xDD
+    0x3D; 0xD6; 0xD1; 0xDD
+    0xDD; 0x63; 0x45; 0xD4
+    0x4D; 0x44; 0x24; 0x44
+    0x45; 0x44; 0x24; 0x42
+    0x45; 0x44; 0x44; 0x42
+    0x45; 0x44; 0x44; 0x44
+    0x5D; 0x44; 0x44; 0xD4
 }
